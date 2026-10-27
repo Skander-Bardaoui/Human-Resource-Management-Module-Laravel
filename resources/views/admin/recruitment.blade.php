@@ -1,4 +1,4 @@
-<x-admin-shell active="recruitment" title="Gestion du Recrutement & Candidatures">
+<x-admin-shell :active="$view === 'offers' ? 'offers' : 'recruitment'" title="Gestion du Recrutement & Candidatures">
 @php
     $contractLabels = [
         'CDI' => 'CDI (Durée Indéterminée)',
@@ -45,10 +45,6 @@
 <span class="text-on-surface font-semibold">Recrutement &amp; Talents</span>
 <span class="ml-space-sm px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-label-sm text-label-sm">Session Q1 2025</span>
 </div>
-<div class="hidden lg:flex items-center gap-space-sm">
-<span class="w-2 h-2 rounded-full bg-tertiary-container animate-pulse"></span>
-<span class="font-label-sm text-label-sm text-on-surface-variant font-medium">Synchronisation ATS &amp; LinkedIn : <strong class="text-on-surface">Actif</strong> (Il y a 4 min)</span>
-</div>
 </div>
 <!-- Primary Page Header & Executive Controls -->
 <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-space-lg pb-space-lg">
@@ -57,33 +53,23 @@
 <h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight font-bold">
           Gestion du Recrutement &amp; Candidatures
         </h1>
-<span class="px-2.5 py-1 rounded-full bg-secondary-container text-on-secondary-fixed font-label-sm text-label-sm flex items-center gap-1 font-semibold">
-<span class="material-symbols-outlined text-body-sm">apartment</span>
-          Carthage Tech Solutions Tunis
-        </span>
 </div>
-<p class="font-body-md text-body-md text-on-surface-variant max-w-3xl">
-        Pilotage centralisé du flux de recrutement conforme aux conventions collectives tunisiennes. Pipeline actif des postes techniques, produit et administratifs.
-      </p>
 </div>
 <!-- Actions & View Switcher -->
 <div class="flex items-center gap-space-md shrink-0 flex-wrap">
+@if ($view !== 'offers')
 <!-- Segmented View Toggle -->
 <div class="inline-flex p-1 bg-surface-container rounded-xl shadow-inner">
 <a class="flex items-center gap-1.5 px-space-md py-1.5 rounded-lg font-label-lg text-label-lg transition-all {{ $view === 'kanban' ? 'bg-surface-container-lowest text-primary font-semibold shadow-sm' : 'text-on-surface-variant hover:text-on-surface' }}" href="{{ route('admin.recruitment', array_merge(request()->query(), ['view' => 'kanban'])) }}">
 <span class="material-symbols-outlined text-body-md" style="font-variation-settings: 'FILL' 1;">view_kanban</span>
 <span>Tableau Kanban</span>
 </a>
-<a class="flex items-center gap-1.5 px-space-md py-1.5 rounded-lg font-label-lg text-label-lg transition-all {{ $view === 'offers' ? 'bg-surface-container-lowest text-primary font-semibold shadow-sm' : 'text-on-surface-variant hover:text-on-surface' }}" href="{{ route('admin.recruitment', array_merge(request()->query(), ['view' => 'offers'])) }}">
-<span class="material-symbols-outlined text-body-md">work</span>
-<span>Offres d'emploi</span>
-<span class="px-1.5 py-0.2 rounded-full bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm font-semibold ml-0.5">{{ $offers->count() }}</span>
-</a>
 </div>
+@endif
 <!-- Action Button -->
 <button class="h-10 px-space-lg rounded-xl bg-primary-container hover:bg-primary text-on-primary font-label-lg text-label-lg flex items-center gap-space-xs shadow-md shadow-primary/20 hover:shadow-lg transition-all active:scale-[0.98]" type="button" onclick="{{ $view === 'offers' ? 'openOfferModal(null)' : 'openCandidateModal(null)' }}">
 <span class="material-symbols-outlined text-body-lg">{{ $view === 'offers' ? 'work' : 'person_add' }}</span>
-<span>{{ $view === 'offers' ? '+ Nouvelle Offre' : '+ Nouveau Recrutement / Offre' }}</span>
+<span>{{ $view === 'offers' ? '+ Nouvelle Offre' : '+ Nouveau Recrutement' }}</span>
 </button>
 </div>
 </div>

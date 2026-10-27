@@ -86,6 +86,7 @@ Route::middleware(['token.auth', 'verified', 'admin'])->prefix('admin')->name('a
     Route::get('/payroll/export/bank', [AdminPayrollController::class, 'exportBank'])->name('payroll.export.bank');
     Route::get('/payroll/{payslip}/payslip', [AdminPayrollController::class, 'downloadPayslip'])->name('payroll.payslip');
     Route::get('/recruitment', [RecruitmentController::class, 'index'])->name('recruitment');
+    Route::get('/offers', [RecruitmentController::class, 'offers'])->name('offers');
     Route::post('/recruitment/candidates', [RecruitmentController::class, 'storeCandidate'])->name('recruitment.candidates.store');
     Route::put('/recruitment/candidates/{candidate}', [RecruitmentController::class, 'updateCandidate'])->name('recruitment.candidates.update');
     Route::delete('/recruitment/candidates/{candidate}', [RecruitmentController::class, 'destroyCandidate'])->name('recruitment.candidates.destroy');

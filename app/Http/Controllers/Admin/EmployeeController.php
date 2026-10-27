@@ -3,11 +3,16 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\CollaboratorAcceptedMail;
 use App\Models\Candidate;
 use App\Models\Employee;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -68,6 +73,23 @@ class EmployeeController extends Controller
             Candidate::where('id', $request->integer('candidate_id'))
                 ->whereNull('onboarded_at')
                 ->update(['onboarded_at' => now()]);
+        }
+
+        $password = Str::password(12);
+
+        User::updateOrCreate(
+            ['email' => $employee->email],
+            [
+                'name' => $employee->name,
+                'password' => Hash::make($password),
+                'email_verified_at' => now(),
+            ]
+        );
+
+        try {
+            Mail::to($employee->email)->send(new CollaboratorAcceptedMail($employee, $password));
+        } catch (\Throwable $e) {
+            report($e);
         }
 
         return redirect()
