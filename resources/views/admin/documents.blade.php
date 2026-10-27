@@ -23,10 +23,6 @@
 <span class="text-on-surface font-semibold">Documents RH</span>
 </div>
 <h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Gestion Documentaire &amp; Fichiers Collaborateurs</h1>
-<p class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-space-xs">
-<span class="material-symbols-outlined text-[16px] text-tertiary">lock</span>
-<span>Coffre-fort numérique sécurisé conforme aux normes tunisiennes • Chiffrement 256-bit</span>
-</p>
 </div>
 <!-- Global CTA Buttons -->
 <div class="flex items-center gap-space-sm self-start md:self-auto shrink-0">

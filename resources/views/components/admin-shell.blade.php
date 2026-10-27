@@ -17,6 +17,7 @@
         ['key' => 'departments', 'label' => 'Departments', 'icon' => 'account_tree', 'route' => 'admin.departments'],
         ['key' => 'payroll', 'label' => 'Payroll', 'icon' => 'payments', 'route' => 'admin.payroll'],
         ['key' => 'recruitment', 'label' => 'Recruitment', 'icon' => 'work', 'route' => 'admin.recruitment'],
+        ['key' => 'offers', 'label' => 'Job Offers', 'icon' => 'assignment', 'route' => 'admin.offers'],
         ['key' => 'documents', 'label' => 'Documents', 'icon' => 'description', 'route' => 'admin.documents'],
         ['key' => 'reports', 'label' => 'Reports', 'icon' => 'analytics', 'route' => 'admin.reports'],
         ['key' => 'settings', 'label' => 'Settings', 'icon' => 'settings', 'route' => 'admin.settings'],
