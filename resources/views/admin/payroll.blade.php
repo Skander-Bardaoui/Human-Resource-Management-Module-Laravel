@@ -5,566 +5,513 @@
         'department' => $filters['department'],
         'status' => $filters['status'],
     ], fn ($value) => $value !== '');
-
     $exportQuery = array_merge($filterQuery, ['month' => $period]);
-    $slip = $selectedPayslip?->payload;
-    $statusCounts = [
-        'ready' => $readyCount,
-        'review' => $reviewCount,
-        'paid' => $paidCount,
-    ];
-    $previousMonthShort = ucfirst($periodStart->copy()->subMonthNoOverflow()->locale('fr')->translatedFormat('M'));
-    $pageNet = $payslips->getCollection()->sum(fn ($payslip) => (float) $payslip->net);
-    $statusBadge = function (string $status): array {
-        return match ($status) {
-            'ready' => ['container' => 'bg-tertiary-fixed text-on-tertiary-fixed font-semibold', 'dot' => 'bg-tertiary'],
-            'review' => ['container' => 'bg-surface-container text-on-surface-variant font-medium', 'dot' => 'bg-secondary'],
-            'paid' => ['container' => 'bg-primary-container/10 text-primary font-semibold', 'dot' => 'bg-primary-container'],
-            default => ['container' => 'bg-surface-container text-on-surface-variant font-medium', 'dot' => 'bg-outline'],
-        };
-    };
+    $hasFilters = $filterQuery !== [];
+    $slip = $selectedPayload;
+    $pageNet = \App\Support\Money::sum($payslips->getCollection()->map(fn ($payslip) => $payslip->netAmount()));
+    $growthLabel = $growthRate === null
+        ? 'Historique indisponible'
+        : (($growthRate >= 0 ? '+' : '').$growthRate.' % vs '.$previousMonthShort);
+    $cycleTone = $periodClosed ? 'primary' : ($payslipCount === 0 ? 'neutral' : ($missingCount > 0 ? 'error' : ($reviewCount > 0 ? 'warning' : 'success')));
+    $cycleTitle = $periodClosed
+        ? 'Cycle clôturé'
+        : ($payslipCount === 0
+            ? 'Aucun bulletin généré'
+            : ($missingCount > 0
+                ? 'Cycle incomplet : '.$missingCount.' bulletin(s) manquant(s)'
+                : ($reviewCount > 0 ? $reviewCount.' bulletin(s) en révision' : 'Prêt à clôturer')));
+    $cycleHint = $periodClosed
+        ? $paidCount.' bulletin(s) marqué(s) payé(s) pour '.$periodLabel.'.'
+        : ($payslipCount === 0
+            ? 'Générez les bulletins des '.$activeEmployees.' collaborateur(s) actif(s) pour démarrer le cycle.'
+            : $readyCount.' prêt(s) · '.$reviewCount.' en révision · '.$paidCount.' payé(s) · '.$missingCount.' manquant(s).');
 @endphp
-<div class="flex flex-col w-full pb-16">
-@if (session('success'))
-<div class="fixed bottom-4 left-4 right-4 sm:left-auto sm:bottom-6 sm:right-6 z-[80] sm:max-w-sm p-space-md rounded-xl bg-tertiary-fixed text-on-tertiary-fixed shadow-lg flex items-start gap-space-sm" data-flash-toast role="status">
-<span class="material-symbols-outlined text-body-lg shrink-0">check_circle</span>
-<span class="font-label-md text-label-md">{{ session('success') }}</span>
-<button class="ml-2 text-on-tertiary-fixed/70 hover:text-on-tertiary-fixed" type="button" onclick="this.parentElement.remove()" aria-label="Fermer">
-<span class="material-symbols-outlined text-body-md">close</span>
-</button>
-</div>
+
+<x-ui.toast />
+
+@if ($errors->any())
+    <div class="mt-space-md flex items-start gap-space-sm rounded-xl bg-error-container p-space-md text-on-error-container shadow-sm" role="alert">
+        <span class="material-symbols-outlined text-body-lg shrink-0" aria-hidden="true">error</span>
+        <p class="font-label-md text-label-md">{{ $errors->first() }}</p>
+    </div>
 @endif
-@if (session('error'))
-<div class="fixed bottom-4 left-4 right-4 sm:left-auto sm:bottom-6 sm:right-6 z-[80] sm:max-w-sm p-space-md rounded-xl bg-error-container text-on-error-container shadow-lg flex items-start gap-space-sm" data-flash-toast role="alert">
-<span class="material-symbols-outlined text-body-lg shrink-0">error</span>
-<span class="font-label-md text-label-md">{{ session('error') }}</span>
-<button class="ml-2 text-on-error-container/70 hover:text-on-error-container" type="button" onclick="this.parentElement.remove()" aria-label="Fermer">
-<span class="material-symbols-outlined text-body-md">close</span>
-</button>
-</div>
-@endif
-<!-- Breadcrumb & Top Metadata Bar -->
-<div class="flex flex-wrap items-center justify-between gap-space-sm pt-space-lg pb-space-md">
-<nav aria-label="Fil d'ariane" class="flex items-center gap-space-xs font-label-md text-label-md text-on-surface-variant">
-<a class="hover:text-primary transition-colors flex items-center gap-1" href="{{ route('admin.dashboard') }}">
-<span class="material-symbols-outlined text-body-sm">home</span>
-<span>Accueil</span>
-</a>
-<span class="text-outline-variant">/</span>
-<span class="text-on-surface font-semibold">Paie &amp; Rémunérations</span>
-<span class="text-outline-variant">/</span>
-<span class="text-primary font-medium">{{ $periodLabel }}</span>
-</nav>
-<div class="flex items-center gap-space-xs font-label-sm text-label-sm text-on-surface-variant bg-surface-container-low px-space-md py-1.5 rounded-full shadow-sm">
-<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
-<span>Barème IRPP Révisé {{ $periodStart->year }} • CNSS {{ $periodStart->year }} Conforme</span>
-</div>
-</div>
-<!-- Main Section Header -->
-<div class="flex flex-col xl:flex-row xl:items-end justify-between gap-space-lg pb-space-xl">
-<div>
-<div class="flex items-center gap-space-sm mb-1">
-<span class="font-label-sm text-label-sm tracking-wider uppercase text-primary font-semibold">Gestion Sociale &amp; Fiscale</span>
-<span class="text-outline-variant">•</span>
-<span class="font-numeric-md text-numeric-md text-on-surface-variant">ID Cycle: {{ $cycleId }}</span>
-</div>
-<h1 class="font-display-lg text-display-lg text-on-surface tracking-tight">Gestion de la Paie &amp; Salaires</h1>
-<p class="font-body-md text-body-md text-on-surface-variant mt-1 flex items-center gap-space-xs">
-<span class="material-symbols-outlined text-body-md text-tertiary">verified</span>
-<span>Cycle de Paie : <strong>{{ $periodLabel }}</strong> • Conforme Code du Travail Tunisien, barème IRPP {{ $periodStart->year }} &amp; Loi de Finances</span>
-</p>
-</div>
-<!-- Action Group -->
-<div class="flex flex-wrap items-center gap-space-sm">
-<a class="h-10 px-space-md rounded-xl bg-surface-container-lowest hover:bg-surface-container text-on-surface font-label-lg text-label-lg flex items-center gap-space-xs shadow-sm transition-all" href="{{ route('admin.payroll.export.journal', ['month' => $period]) }}" title="Télécharger le journal de paie (CSV compatible Excel)">
-<span class="material-symbols-outlined text-body-md text-tertiary">table_view</span>
-<span>Journal de Paie (Excel)</span>
-</a>
-<a class="h-10 px-space-md rounded-xl bg-surface-container-lowest hover:bg-surface-container text-on-surface font-label-lg text-label-lg flex items-center gap-space-xs shadow-sm transition-all" href="{{ route('admin.payroll.export.cnss', ['month' => $period]) }}" title="Télécharger la télé-déclaration CNSS (.TXT)">
-<span class="material-symbols-outlined text-body-md text-primary">cloud_download</span>
-<span>Télé-déclaration CNSS (.TXT)</span>
-</a>
-<form method="POST" action="{{ route('admin.payroll.close') }}" onsubmit="return confirm('Clôturer le cycle de paie ? Tous les bulletins non payés seront marqués comme payés.');">
-@csrf
-<input type="hidden" name="period" value="{{ $period }}"/>
-<button class="h-10 px-space-lg rounded-xl bg-primary-container hover:bg-primary text-on-primary font-label-lg text-label-lg flex items-center gap-space-xs shadow-md transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-primary-container" type="submit" @if ($periodClosed) disabled @endif>
-<span class="material-symbols-outlined text-body-md">lock</span>
-<span>{{ $periodClosed ? 'Mois Clôturé' : 'Clôturer le Mois' }}</span>
-</button>
-</form>
-</div>
-</div>
-<!-- Operational Status Banner -->
-<div class="relative overflow-hidden rounded-xl bg-gradient-to-r from-surface-container-low via-surface-container-lowest to-surface-container-low p-space-lg shadow-sm mb-space-xl">
-<div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-space-md">
-<div class="flex items-start md:items-center gap-space-md">
-<div class="w-10 h-10 rounded-xl bg-tertiary/10 text-tertiary flex items-center justify-center shrink-0">
-<span class="material-symbols-outlined text-headline-sm">account_balance</span>
-</div>
-<div>
-<div class="flex items-center gap-space-xs">
-<span class="font-headline-sm text-headline-sm text-on-surface">Cycle {{ $periodLabel }} : {{ $periodClosed ? 'Clôturé et Télétransmis' : 'Prêt pour Télétransmission' }}</span>
-@if ($periodClosed)
-<span class="px-2 py-0.5 rounded-full text-label-sm font-label-sm bg-tertiary-fixed text-on-tertiary-fixed font-semibold">Cycle Clôturé</span>
-@elseif ($reviewCount === 0 && $coverageRate >= 100)
-<span class="px-2 py-0.5 rounded-full text-label-sm font-label-sm bg-tertiary-fixed text-on-tertiary-fixed font-semibold">Validé DAF</span>
-@else
-<span class="px-2 py-0.5 rounded-full text-label-sm font-label-sm bg-surface-container-high text-on-surface-variant font-semibold">En Préparation</span>
-@endif
-</div>
-<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
-            Fichiers SEPA / Virement bancaire protocolisés prêts pour <strong>Amen Bank</strong> et <strong>BIAT</strong> (Format TXT télétransmis). Contrôle matricules CNSS : {{ $coverageRate }}% conformes.
-          </p>
-</div>
-</div>
-<div class="flex items-center gap-space-sm shrink-0">
-<div class="text-right hidden sm:block">
-<p class="font-label-sm text-label-sm text-on-surface-variant uppercase">Date d'échéance virement</p>
-<p class="font-numeric-md text-numeric-md text-on-surface font-bold">{{ $deadline->format('j') }} {{ ucfirst($deadline->copy()->locale('fr')->translatedFormat('F Y')) }}</p>
-</div>
-<a class="px-space-md py-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md transition-colors flex items-center gap-1" href="{{ route('admin.payroll.export.bank', ['month' => $period]) }}" title="Télécharger le fichier de virements bancaires (.TXT)">
-<span class="material-symbols-outlined text-body-sm">send</span>
-<span>Transmettre Fichiers Banques</span>
-</a>
-</div>
-</div>
-</div>
-<!-- High-level Financial Metric Cards (4 Bento KPIs) -->
-<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-space-md mb-space-xl">
-<!-- KPI 1 -->
-<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col justify-between">
-<div class="flex items-center justify-between text-on-surface-variant mb-space-sm">
-<span class="font-label-md text-label-md uppercase tracking-wider">Masse Salariale Nette</span>
-<span class="material-symbols-outlined text-body-lg text-primary">payments</span>
-</div>
-<div class="flex items-baseline gap-space-xs my-space-xs">
-<span class="font-display-lg text-display-lg text-on-surface tracking-tight">{{ number_format($netTotal, 0, '.', ',') }}</span>
-<span class="font-label-lg text-label-lg text-on-surface-variant font-medium">TND</span>
-</div>
-<div class="flex items-center justify-between pt-space-xs text-on-surface-variant">
-<span class="font-label-sm text-label-sm text-tertiary font-semibold flex items-center gap-0.5">
-<span class="material-symbols-outlined text-body-sm">check_circle</span>
-          {{ $periodClosed ? $paidCount.' virements exécutés' : $readyCount.' virements prêts' }}
-        </span>
-<span class="font-label-sm text-label-sm">{{ $growthRate === null ? 'Historique indisponible' : (($growthRate >= 0 ? '+' : '').number_format($growthRate, 1, '.', '').'% vs '.$previousMonthShort) }}</span>
-</div>
-</div>
-<!-- KPI 2 -->
-<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col justify-between">
-<div class="flex items-center justify-between text-on-surface-variant mb-space-sm">
-<span class="font-label-md text-label-md uppercase tracking-wider">Cotisations CNSS (9.18%)</span>
-<span class="material-symbols-outlined text-body-lg text-secondary">badge</span>
-</div>
-<div class="flex items-baseline gap-space-xs my-space-xs">
-<span class="font-display-lg text-display-lg text-on-surface tracking-tight">{{ number_format($cnssTotal, 0, '.', ',') }}</span>
-<span class="font-label-lg text-label-lg text-on-surface-variant font-medium">TND</span>
-</div>
-<div class="flex items-center justify-between pt-space-xs text-on-surface-variant">
-<span class="font-label-sm text-label-sm">Part salariale déduite</span>
-<span class="font-numeric-md text-numeric-md font-semibold text-on-surface">Régime Général</span>
-</div>
-</div>
-<!-- KPI 3 -->
-<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col justify-between">
-<div class="flex items-center justify-between text-on-surface-variant mb-space-sm">
-<span class="font-label-md text-label-md uppercase tracking-wider">Cotisations CNSS Patronales</span>
-<span class="material-symbols-outlined text-body-lg text-tertiary">assured_workload</span>
-</div>
-<div class="flex items-baseline gap-space-xs my-space-xs">
-<span class="font-display-lg text-display-lg text-on-surface tracking-tight">{{ number_format($employerCnssTotal, 0, '.', ',') }}</span>
-<span class="font-label-lg text-label-lg text-on-surface-variant font-medium">TND</span>
-</div>
-<div class="flex items-center justify-between pt-space-xs text-on-surface-variant">
-<span class="font-label-sm text-label-sm">16.57% + Acc. Travail (0.8%)</span>
-<span class="font-numeric-md text-numeric-md font-semibold text-tertiary">Déclarable Q{{ $periodStart->quarter }}</span>
-</div>
-</div>
-<!-- KPI 4 -->
-<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col justify-between">
-<div class="flex items-center justify-between text-on-surface-variant mb-space-sm">
-<span class="font-label-md text-label-md uppercase tracking-wider">Retenue à la Source IRPP</span>
-<span class="material-symbols-outlined text-body-lg text-primary-container">receipt_long</span>
-</div>
-<div class="flex items-baseline gap-space-xs my-space-xs">
-<span class="font-display-lg text-display-lg text-on-surface tracking-tight">{{ number_format($irppTotal, 0, '.', ',') }}</span>
-<span class="font-label-lg text-label-lg text-on-surface-variant font-medium">TND</span>
-</div>
-<div class="flex items-center justify-between pt-space-xs text-on-surface-variant">
-<span class="font-label-sm text-label-sm">Déclaration Mensuelle N°28</span>
-<span class="font-numeric-md text-numeric-md font-semibold text-primary">Échéance {{ $irppDeadline->format('d/m') }}</span>
-</div>
-</div>
-</div>
-<!-- Interactive Workspace: Table & Interactive Payslip Drawer/Panel -->
-<div class="grid grid-cols-1 xl:grid-cols-12 gap-space-lg">
-<!-- Left / Center: Table & Filtering (8 cols) -->
-<div class="xl:col-span-8 flex flex-col gap-space-md">
-<!-- Search & Filters Container -->
-<form class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-wrap items-center justify-between gap-space-sm" id="payrollFilterForm" method="GET" action="{{ route('admin.payroll') }}">
-<input name="month" type="hidden" value="{{ $period }}"/>
-<div class="flex flex-wrap items-center gap-space-sm flex-1 min-w-[280px]">
-<div class="relative flex-1 min-w-[220px]">
-<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-body-md text-on-surface-variant pointer-events-none">search</span>
-<input class="w-full h-9 pl-9 pr-3 rounded-lg bg-surface-container-low font-body-sm text-body-sm text-on-surface focus:outline-none focus:bg-surface-container transition-colors" id="searchInput" name="q" placeholder="Filtrer collaborateur, CIN, matricule..." type="text" value="{{ $filters['q'] }}"/>
-</div>
-<!-- Department Selector -->
-<select class="h-9 px-space-sm rounded-lg bg-surface-container-low font-body-sm text-body-sm text-on-surface focus:outline-none focus:bg-surface-container" name="department" onchange="this.form.requestSubmit()">
-<option value="">Tous Départements</option>
-@foreach (\App\Models\Employee::DEPARTMENTS as $value => $label)
-<option value="{{ $value }}" @selected($filters['department'] === $value)>{{ $label }}</option>
-@endforeach
-</select>
-<!-- Status Selector -->
-<select class="h-9 px-space-sm rounded-lg bg-surface-container-low font-body-sm text-body-sm text-on-surface focus:outline-none focus:bg-surface-container" name="status" onchange="this.form.requestSubmit()">
-<option value="">Tous Statuts</option>
-@foreach (\App\Models\Payslip::STATUSES as $value => $label)
-<option value="{{ $value }}" @selected($filters['status'] === $value)>{{ $label }}{{ $value === 'paid' ? '' : ' ('.$statusCounts[$value].')' }}</option>
-@endforeach
-</select>
-</div>
-<div class="flex items-center gap-space-xs text-on-surface-variant font-label-sm text-label-sm">
-<span>{{ $activeEmployees }} Collaborateurs Actifs</span>
-<span class="w-1.5 h-1.5 rounded-full bg-outline-variant"></span>
-<span>{{ $coverageRate }}% Déclarés</span>
-</div>
-</form>
-<!-- Main Payroll Register Table -->
-<div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
-<div class="overflow-x-auto">
-<table class="w-full text-left border-collapse">
-<thead>
-<tr class="bg-surface-container-low h-10 text-on-surface-variant font-label-md text-label-md uppercase tracking-wider">
-<th class="py-2.5 px-space-md">Collaborateur</th>
-<th class="py-2.5 px-space-sm">Département</th>
-<th class="py-2.5 px-space-sm text-right">Brut (TND)</th>
-<th class="py-2.5 px-space-sm text-right">Primes</th>
-<th class="py-2.5 px-space-sm text-right">CNSS 9.18%</th>
-<th class="py-2.5 px-space-sm text-right">IRPP</th>
-<th class="py-2.5 px-space-md text-right">Net à Payer</th>
-<th class="py-2.5 px-space-sm text-center">Statut</th>
-<th class="py-2.5 px-space-sm text-center">Action</th>
-</tr>
-</thead>
-<tbody class="font-body-md text-body-md divide-y divide-surface-container" id="payrollTableBody">
-@forelse ($payslips as $payslip)
-@php
-    $badge = $statusBadge($payslip->status);
-    $isSelected = $selectedPayslip !== null && $selectedPayslip->id === $payslip->id;
-@endphp
-<tr class="hover:bg-surface-container-low transition-colors cursor-pointer {{ $isSelected ? 'bg-primary-container/5' : '' }}" data-slip="{{ json_encode($payslip->payload) }}" onclick="selectPayslip(this)">
-<td class="py-3 px-space-md">
-<div class="flex items-center gap-space-sm">
-@if ($payslip->employee?->avatar_url)
-<img class="w-8 h-8 rounded-full object-cover shrink-0" alt="{{ $payslip->employee->name }}" src="{{ $payslip->employee->avatar_url }}"/>
-@else
-<div class="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-label-sm shrink-0">
-              {{ $payslip->employee?->initials() ?? '?' }}
+
+<div class="flex w-full flex-col pb-16">
+    <div class="flex flex-wrap items-center justify-between gap-space-sm pb-space-md pt-space-lg">
+        <nav aria-label="Fil d'ariane" class="flex items-center gap-space-xs font-label-md text-label-md text-on-surface-variant">
+            <a class="flex items-center gap-1 transition-colors hover:text-primary" href="{{ route('admin.dashboard') }}">
+                <span class="material-symbols-outlined text-body-sm">home</span>
+                <span>Accueil</span>
+            </a>
+            <span class="text-outline-variant">/</span>
+            <span class="font-semibold text-on-surface">Paie &amp; Rémunérations</span>
+            <span class="text-outline-variant">/</span>
+            <span class="font-medium text-primary">{{ $periodLabel }}</span>
+        </nav>
+        <div class="flex items-center gap-space-xs rounded-full bg-surface-container-low px-space-md py-1.5 font-label-sm text-label-sm text-on-surface-variant shadow-sm">
+            <span class="material-symbols-outlined text-body-sm">tune</span>
+            <span>Paramétrage de paie {{ $version }}</span>
+        </div>
+    </div>
+
+    <div class="flex flex-col justify-between gap-space-lg pb-space-xl xl:flex-row xl:items-end">
+        <div>
+            <div class="mb-1 flex flex-wrap items-center gap-space-sm">
+                <span class="font-label-sm text-label-sm font-semibold uppercase tracking-wider text-primary">Gestion Sociale &amp; Fiscale</span>
+                <span class="text-outline-variant">•</span>
+                <span class="font-numeric-md text-numeric-md text-on-surface-variant">Cycle {{ $cycleId }}</span>
             </div>
-@endif
-<div class="min-w-0">
-<p class="font-headline-sm text-headline-sm text-on-surface leading-tight truncate">{{ $payslip->employee?->name ?? 'Collaborateur' }}</p>
-<p class="font-label-sm text-label-sm text-on-surface-variant font-mono">{{ $payslip->matricule() }} • CIN {{ $payslip->employee?->cin ?: '—' }}</p>
-</div>
-</div>
-</td>
-<td class="py-3 px-space-sm">
-<span class="inline-block px-2 py-0.5 rounded bg-surface-container font-label-sm text-label-sm text-on-surface">{{ $payslip->employee?->departmentShortLabel() ?? '—' }}</span>
-</td>
-<td class="py-3 px-space-sm text-right font-numeric-md text-numeric-md text-on-surface">{{ number_format($payslip->gross(), 3, '.', ',') }}</td>
-<td class="py-3 px-space-sm text-right font-numeric-md text-numeric-md text-on-surface">+{{ number_format((float) $payslip->prime, 3, '.', ',') }}</td>
-<td class="py-3 px-space-sm text-right font-numeric-md text-numeric-md {{ $payslip->status === 'ready' ? 'text-error-container text-on-surface' : 'text-on-surface-variant' }}">-{{ number_format((float) $payslip->cnss, 3, '.', ',') }}</td>
-<td class="py-3 px-space-sm text-right font-numeric-md text-numeric-md text-on-surface-variant">-{{ number_format((float) $payslip->irpp, 3, '.', ',') }}</td>
-<td class="py-3 px-space-md text-right font-numeric-md text-numeric-md font-bold text-primary">{{ number_format((float) $payslip->net, 3, '.', ',') }}</td>
-<td class="py-3 px-space-sm text-center">
-<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-label-sm font-label-sm {{ $badge['container'] }}">
-<span class="w-1.5 h-1.5 rounded-full {{ $badge['dot'] }}"></span>
-                    {{ $payslip->statusLabel() }}
-                  </span>
-</td>
-<td class="py-3 px-space-sm text-center">
-<button class="p-1 rounded hover:bg-surface-container text-primary transition-colors" title="Aperçu du bulletin" type="button" aria-label="Aperçu du bulletin de {{ $payslip->employee?->name }}">
-<span class="material-symbols-outlined text-body-md">visibility</span>
-</button>
-</td>
-</tr>
-@empty
-<tr>
-<td class="py-10 px-space-md text-center text-on-surface-variant" colspan="9">
-<span class="material-symbols-outlined text-headline-md block mb-2">receipt_long</span>
-<p class="font-body-md text-body-md">Aucun bulletin ne correspond aux filtres sélectionnés pour ce cycle.</p>
-</td>
-</tr>
-@endforelse
-</tbody>
-</table>
-</div>
-<!-- Table Pagination & Footer Summary -->
-<div class="p-space-md bg-surface-container-low flex flex-wrap items-center justify-between gap-space-sm">
-<div class="flex items-center gap-space-sm font-body-sm text-body-sm text-on-surface-variant">
-<span>Affichage de {{ $payslips->firstItem() ?? 0 }} à {{ $payslips->lastItem() ?? 0 }} sur {{ $payslips->total() }} collaborateurs</span>
-<span class="text-outline-variant">•</span>
-<span>Total Net Émis : <strong class="text-on-surface font-semibold">{{ number_format($pageNet, 3, '.', ',') }} TND</strong></span>
-</div>
-<div class="flex items-center gap-space-xs">
-@if ($payslips->onFirstPage())
-<button class="h-8 px-3 rounded-lg bg-surface-container-lowest text-on-surface font-label-md text-label-md disabled:opacity-50 shadow-sm" disabled="">Précédent</button>
-@else
-<a class="h-8 px-3 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface font-label-md text-label-md shadow-sm" href="{{ $payslips->previousPageUrl() }}">Précédent</a>
-@endif
-@foreach ($payslips->getUrlRange(max(1, $payslips->currentPage() - 1), min($payslips->lastPage(), $payslips->currentPage() + 1)) as $page => $url)
-@if ($page === $payslips->currentPage())
-<span class="h-8 w-8 rounded-lg bg-primary-container text-on-primary font-label-md text-label-md shadow-sm flex items-center justify-center">{{ $page }}</span>
-@else
-<a class="h-8 w-8 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface font-label-md text-label-md shadow-sm flex items-center justify-center" href="{{ $url }}">{{ $page }}</a>
-@endif
-@endforeach
-@if ($payslips->hasMorePages())
-<a class="h-8 px-3 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface font-label-md text-label-md shadow-sm" href="{{ $payslips->nextPageUrl() }}">Suivant</a>
-@else
-<button class="h-8 px-3 rounded-lg bg-surface-container-lowest text-on-surface font-label-md text-label-md disabled:opacity-50 shadow-sm" disabled="">Suivant</button>
-@endif
-</div>
-</div>
-</div>
-<!-- Quick Regulatory Note Banner -->
-<div class="bg-surface-container-low rounded-xl p-space-md flex items-center justify-between gap-space-md">
-<div class="flex items-center gap-space-sm">
-<span class="material-symbols-outlined text-tertiary text-headline-sm">info</span>
-<p class="font-body-sm text-body-sm text-on-surface">
-<strong>Rappel Loi de Finances :</strong> La Contribution Sociale de Solidarité (CSS 1%) et le nouveau barème d'abattement pour charges familiales (300 TND conjoint, 100 TND/enfant) sont appliqués automatiquement sur ce cycle.
-          </p>
-</div>
-<button class="whitespace-nowrap font-label-md text-label-md text-primary font-semibold hover:underline" type="button" onclick="document.getElementById('bracketModal').classList.remove('hidden')">
-          Consulter Barème {{ $periodStart->year }}
-        </button>
-</div>
-</div>
-<!-- Right: High Precision Payslip Slide-out / Focus View (4 cols) -->
-<div class="xl:col-span-4">
-<div class="bg-surface-container-lowest rounded-xl shadow-lg p-space-lg sticky top-20 flex flex-col justify-between" id="slipPrintArea">
-<div>
-<!-- Header Bulletin -->
-<div class="flex items-start justify-between pb-space-md">
-<div>
-<span class="font-label-sm text-label-sm uppercase tracking-wider text-primary font-bold">Aperçu Officiel</span>
-<h2 class="font-headline-md text-headline-md text-on-surface font-bold tracking-tight mt-0.5">Bulletin de Paie</h2>
-<p class="font-body-sm text-body-sm text-on-surface-variant">Période : {{ $periodStart->format('d/m/Y') }} au {{ $periodEnd->format('d/m/Y') }}</p>
-</div>
-<div class="h-9 px-2.5 rounded-lg bg-tertiary-fixed flex items-center gap-1 text-on-tertiary-fixed font-label-sm text-label-sm font-semibold">
-<span class="material-symbols-outlined text-body-sm">verified_user</span>
-<span>Certifié Conforme</span>
-</div>
-</div>
-<!-- Employer & Employee Administrative Metadata -->
-<div class="bg-surface-container-low rounded-xl p-space-md space-y-space-xs mb-space-md font-body-sm text-body-sm">
-<div class="flex justify-between items-center text-on-surface-variant">
-<span>Société :</span>
-<strong class="text-on-surface">Carthage Tech Solutions SARL</strong>
-</div>
-<div class="flex justify-between items-center text-on-surface-variant">
-<span>Affiliation CNSS Employeur :</span>
-<span class="font-mono text-on-surface">29481900-12</span>
-</div>
-<div class="h-px bg-surface-container my-1"></div>
-<div class="flex justify-between items-center text-on-surface">
-<span class="font-medium">Salarié :</span>
-<strong class="text-primary font-semibold" id="slipName">{{ $slip['name'] ?? '—' }}</strong>
-</div>
-<div class="flex justify-between items-center text-on-surface-variant">
-<span>CIN &amp; Matricule :</span>
-<span class="font-mono text-on-surface" id="slipCin">{{ $slip['cin'] ?? '—' }}</span>
-</div>
-<div class="flex justify-between items-center text-on-surface-variant">
-<span>Emploi &amp; Échelon :</span>
-<span class="text-on-surface font-medium" id="slipRole">{{ $slip['role'] ?? '—' }}</span>
-</div>
-<div class="flex justify-between items-center text-on-surface-variant">
-<span>Régime de Travail :</span>
-<span class="text-on-surface">40h / Semaine • Tunis</span>
-</div>
-</div>
-<!-- Salary Deconstruction Line Items -->
-<div class="space-y-space-xs mb-space-md">
-<div class="flex justify-between items-center py-1 font-body-sm text-body-sm">
-<span class="text-on-surface">Salaire de Base Brut</span>
-<span class="font-numeric-md text-numeric-md font-medium text-on-surface" id="slipBase">{{ $slip['base'] ?? '—' }}</span>
-</div>
-<div class="flex justify-between items-center py-1 font-body-sm text-body-sm text-on-surface-variant">
-<span>Prime de Rendement &amp; Technicité</span>
-<span class="font-numeric-md text-numeric-md text-on-surface" id="slipPrime">{{ $slip['prime'] ?? '—' }}</span>
-</div>
-<div class="flex justify-between items-center py-1 font-body-sm text-body-sm text-on-surface-variant">
-<span>Indemnité de Transport Légale</span>
-<span class="font-numeric-md text-numeric-md text-on-surface" id="slipTransport">{{ $slip['transport'] ?? '—' }}</span>
-</div>
-<!-- Deductions Partition -->
-<div class="bg-surface-container/60 rounded-lg p-2.5 space-y-1.5 my-2">
-<div class="flex justify-between items-center font-body-sm text-body-sm">
-<span class="text-error font-medium">Cotisation CNSS (9.18%)</span>
-<span class="font-numeric-md text-numeric-md text-error" id="slipCnss">{{ $slip['cnss'] ?? '—' }}</span>
-</div>
-<div class="flex justify-between items-center font-body-sm text-body-sm">
-<span class="text-on-surface-variant">Base Imposable Soumise à l'IRPP</span>
-<span class="font-numeric-md text-numeric-md text-on-surface font-mono" id="slipTaxBase">{{ $slip['taxBase'] ?? '—' }}</span>
-</div>
-<div class="flex justify-between items-center font-body-sm text-body-sm">
-<span class="text-error font-medium">Retenue IRPP (Tranches {{ $periodStart->year }})</span>
-<span class="font-numeric-md text-numeric-md text-error" id="slipIrpp">{{ $slip['irpp'] ?? '—' }}</span>
-</div>
-<div class="flex justify-between items-center font-body-sm text-body-sm">
-<span class="text-error font-medium">Contrib. Solidarité Sociale (CSS 1%)</span>
-<span class="font-numeric-md text-numeric-md text-error" id="slipCss">{{ $slip['css'] ?? '—' }}</span>
-</div>
-</div>
-</div>
-<!-- Net to Pay Grand Banner -->
-<div class="bg-primary-container text-on-primary rounded-xl p-space-md mb-space-sm shadow-md">
-<span class="font-label-sm text-label-sm tracking-wider uppercase opacity-90">Net à Payer (Virement Bancaire)</span>
-<div class="flex items-baseline justify-between mt-1">
-<span class="font-display-lg text-display-lg font-bold tracking-tight" id="slipNet">{{ $slip['net'] ?? '—' }}</span>
-<span class="font-headline-sm text-headline-sm font-semibold opacity-95">TND</span>
-</div>
-<p class="font-body-sm text-body-sm opacity-90 italic mt-1" id="slipInWords">
-              "{{ $slip['words'] ?? 'Aucun bulletin sélectionné' }}"
+            <h1 class="font-display-lg text-display-lg tracking-tight text-on-surface">Gestion de la Paie &amp; Salaires</h1>
+            <p class="mt-1 flex flex-wrap items-center gap-space-xs font-body-md text-body-md text-on-surface-variant">
+                <span class="material-symbols-outlined text-body-md text-tertiary">calendar_month</span>
+                <span><strong>{{ $periodLabel }}</strong> · {{ $payslipCount }} bulletin(s) · {{ $coveredEmployees }}/{{ $activeEmployees }} collaborateur(s) couvert(s)</span>
             </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-space-sm">
+            @if ($payslipCount > 0)
+                <a class="flex h-10 items-center gap-space-xs rounded-xl bg-surface-container-lowest px-space-md font-label-lg text-label-lg text-on-surface shadow-sm transition-all hover:bg-surface-container focus:outline-none focus:ring-2 focus:ring-primary" href="{{ route('admin.payroll.export.journal', $exportQuery) }}" title="Exporter le journal de paie au format CSV">
+                    <span class="material-symbols-outlined text-body-md text-tertiary">table_view</span>
+                    <span>Journal CSV</span>
+                </a>
+                <a class="flex h-10 items-center gap-space-xs rounded-xl bg-surface-container-lowest px-space-md font-label-lg text-label-lg text-on-surface shadow-sm transition-all hover:bg-surface-container focus:outline-none focus:ring-2 focus:ring-primary" href="{{ route('admin.payroll.export.cnss', $exportQuery) }}" title="Exporter les cotisations CNSS au format CSV">
+                    <span class="material-symbols-outlined text-body-md text-primary">database</span>
+                    <span>CNSS CSV</span>
+                </a>
+                <a class="flex h-10 items-center gap-space-xs rounded-xl bg-surface-container-lowest px-space-md font-label-lg text-label-lg text-on-surface shadow-sm transition-all hover:bg-surface-container focus:outline-none focus:ring-2 focus:ring-primary" href="{{ route('admin.payroll.export.bank', $exportQuery) }}" title="Exporter les virements au statut Prêt avec RIB">
+                    <span class="material-symbols-outlined text-body-md text-secondary">send</span>
+                    <span>Virements CSV</span>
+                </a>
+            @endif
+            <button class="flex h-10 items-center gap-space-xs rounded-xl bg-surface-container px-space-md font-label-lg text-label-lg text-on-surface shadow-sm transition-all hover:bg-surface-container-high focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50" type="button" onclick="openDialog('generatePayrollDialog')" @disabled($activeEmployees === 0)>
+                <span class="material-symbols-outlined text-body-md">auto_awesome</span>
+                <span>Générer les bulletins</span>
+            </button>
+            <button class="flex h-10 items-center gap-space-xs rounded-xl bg-primary-container px-space-lg font-label-lg text-label-lg text-on-primary shadow-md transition-all hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary-container" type="button" onclick="openDialog('closePayrollDialog')" @disabled($periodClosed || $payslipCount === 0 || $missingCount > 0)>
+                <span class="material-symbols-outlined text-body-md">lock</span>
+                <span>{{ $periodClosed ? 'Mois clôturé' : 'Clôturer le mois' }}</span>
+            </button>
+        </div>
+    </div>
+
+    <section class="mb-space-xl rounded-xl bg-surface-container-low p-space-lg shadow-sm" aria-label="État du cycle de paie">
+        <div class="flex flex-col justify-between gap-space-md md:flex-row md:items-center">
+            <div class="flex items-start gap-space-md">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-container-lowest text-primary">
+                    <span class="material-symbols-outlined text-headline-sm">account_balance</span>
+                </div>
+                <div>
+                    <div class="flex flex-wrap items-center gap-space-xs">
+                        <h2 class="font-headline-sm text-headline-sm text-on-surface">Cycle {{ $periodLabel }} · {{ $cycleTitle }}</h2>
+                        <x-ui.status-badge :tone="$cycleTone" :label="$periodClosed ? 'Clôturé' : ($payslipCount === 0 ? 'À générer' : 'En cours')" />
+                    </div>
+                    <p class="mt-0.5 font-body-sm text-body-sm text-on-surface-variant">{{ $cycleHint }}</p>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-space-md">
+                <div class="text-left sm:text-right">
+                    <p class="font-label-sm text-label-sm uppercase text-on-surface-variant">Échéance de paiement cible</p>
+                    <p class="font-numeric-md text-numeric-md font-bold text-on-surface">{{ $deadline->format('j') }} {{ ucfirst($deadline->copy()->locale('fr')->translatedFormat('F Y')) }}</p>
+                </div>
+                <div class="text-left sm:text-right">
+                    <p class="font-label-sm text-label-sm uppercase text-on-surface-variant">Déclaration IRPP cible</p>
+                    <p class="font-numeric-md text-numeric-md font-semibold text-on-surface">{{ $irppDeadline->format('d/m/Y') }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="mt-space-md flex flex-wrap items-center gap-space-xs border-t border-outline-variant/30 pt-space-sm">
+            <x-ui.status-badge tone="success" :label="$readyCount.' prêt(s)'" />
+            <x-ui.status-badge tone="warning" :label="$reviewCount.' en révision'" />
+            <x-ui.status-badge tone="primary" :label="$paidCount.' payé(s)'" />
+            <x-ui.status-badge :tone="$missingCount > 0 ? 'error' : 'neutral'" :label="$missingCount.' manquant(s)'" />
+            <span class="ml-auto font-label-sm text-label-sm text-on-surface-variant">
+                Couverture : {{ $coverageRate === null ? '—' : $coverageRate.' %' }} · {{ $coveredEmployees }}/{{ $activeEmployees }} collaborateurs actifs
+            </span>
+        </div>
+    </section>
+
+    <div class="mb-space-xl grid grid-cols-1 gap-space-md md:grid-cols-2 xl:grid-cols-4">
+        <x-ui.kpi-card
+            label="Masse salariale brute"
+            :value="$grossTotal->format(3).' TND'"
+            icon="payments"
+            tone="primary"
+            :hint="$payslipCount.' bulletin(s) · '.$coveredEmployees.'/'.$activeEmployees.' collaborateurs couverts'"
+        />
+        <x-ui.kpi-card
+            label="Net à payer"
+            :value="$netTotal->format(3).' TND'"
+            icon="account_balance_wallet"
+            tone="tertiary"
+            :hint="'Prêt : '.$readyCount.' · Payé : '.$paidCount.' · '.$growthLabel"
+        />
+        <x-ui.kpi-card
+            label="CNSS salariale + patronale"
+            :value="$cnssTotal->plus($employerCnssTotal)->format(3).' TND'"
+            icon="badge"
+            tone="secondary"
+            :hint="'Salariale '.$cnssTotal->format(3).' TND ('.$rates['employeeCnss'].') · Patronale '.$employerCnssTotal->format(3).' TND ('.$rates['employerCnss'].')'"
+        />
+        <x-ui.kpi-card
+            label="IRPP retenu"
+            :value="$irppTotal->format(3).' TND'"
+            icon="receipt_long"
+            tone="neutral"
+            :hint="'CSS '.$cssTotal->format(3).' TND ('.$rates['css'].') · Paramétrage '.$version"
+        />
+    </div>
+
+    <div class="grid grid-cols-1 gap-space-lg xl:grid-cols-12">
+        <div class="flex flex-col gap-space-md xl:col-span-8">
+            <form class="flex flex-wrap items-center justify-between gap-space-sm rounded-xl bg-surface-container-lowest p-space-md shadow-sm" id="payrollFilterForm" method="GET" action="{{ route('admin.payroll') }}">
+                <input name="month" type="hidden" value="{{ $period }}"/>
+                <div class="flex min-w-[280px] flex-1 flex-wrap items-center gap-space-sm">
+                    <div class="relative min-w-[220px] flex-1">
+                        <label class="sr-only" for="payrollSearch">Rechercher un collaborateur</label>
+                        <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-body-md text-on-surface-variant material-symbols-outlined">search</span>
+                        <input class="h-9 w-full rounded-lg bg-surface-container-low pl-9 pr-3 font-body-sm text-body-sm text-on-surface transition-colors focus:bg-surface-container focus:outline-none focus:ring-2 focus:ring-primary" id="payrollSearch" name="q" placeholder="Nom, CIN, N° CNSS, e-mail..." type="text" value="{{ $filters['q'] }}"/>
+                    </div>
+                    <label class="sr-only" for="payrollDepartment">Filtrer par département</label>
+                    <select class="h-9 rounded-lg bg-surface-container-low px-space-sm font-body-sm text-body-sm text-on-surface focus:bg-surface-container focus:outline-none focus:ring-2 focus:ring-primary" id="payrollDepartment" name="department" onchange="this.form.requestSubmit()">
+                        <option value="">Tous les départements</option>
+                        @foreach (\App\Models\Employee::DEPARTMENTS as $value => $label)
+                            <option value="{{ $value }}" @selected($filters['department'] === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <label class="sr-only" for="payrollStatus">Filtrer par statut</label>
+                    <select class="h-9 rounded-lg bg-surface-container-low px-space-sm font-body-sm text-body-sm text-on-surface focus:bg-surface-container focus:outline-none focus:ring-2 focus:ring-primary" id="payrollStatus" name="status" onchange="this.form.requestSubmit()">
+                        <option value="">Tous les statuts</option>
+                        @foreach (\App\Models\Payslip::STATUSES as $value => $label)
+                            <option value="{{ $value }}" @selected($filters['status'] === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    @if ($hasFilters)
+                        <a class="font-label-sm text-label-sm font-semibold text-primary hover:underline" href="{{ route('admin.payroll', ['month' => $period]) }}">Réinitialiser</a>
+                    @endif
+                </div>
+                <div class="flex items-center gap-space-xs font-label-sm text-label-sm text-on-surface-variant">
+                    <span>{{ $activeEmployees }} actif(s)</span>
+                    <span class="h-1.5 w-1.5 rounded-full bg-outline-variant"></span>
+                    <span>{{ $coveredEmployees }} couvert(s)</span>
+                </div>
+            </form>
+
+            <div class="overflow-hidden rounded-xl bg-surface-container-lowest shadow-sm">
+                @if ($payslips->isEmpty())
+                    <div class="p-space-md">
+                        @if ($payslipCount === 0)
+                            <x-ui.empty-state icon="receipt_long" title="Aucun bulletin pour {{ $periodLabel }}" description="Générez les bulletins des collaborateurs actifs pour démarrer le cycle. Les montants seront calculés selon le paramétrage de paie {{ $version }}.">
+                                <button class="inline-flex items-center gap-space-xs rounded-xl bg-primary-container px-space-lg py-2.5 font-label-lg text-label-lg text-on-primary shadow-sm transition-colors hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2" type="button" onclick="openDialog('generatePayrollDialog')">
+                                    <span class="material-symbols-outlined text-body-md">auto_awesome</span>
+                                    <span>Générer les bulletins</span>
+                                </button>
+                            </x-ui.empty-state>
+                        @else
+                            <x-ui.empty-state icon="filter_alt_off" title="Aucun résultat" description="Aucun bulletin ne correspond aux filtres sélectionnés pour {{ $periodLabel }}.">
+                                <a class="inline-flex items-center gap-space-xs rounded-xl bg-surface-container px-space-lg py-2.5 font-label-lg text-label-lg text-on-surface transition-colors hover:bg-surface-container-high focus:outline-none focus:ring-2 focus:ring-primary" href="{{ route('admin.payroll', ['month' => $period]) }}">
+                                    <span class="material-symbols-outlined text-body-md">filter_alt_off</span>
+                                    <span>Effacer les filtres</span>
+                                </a>
+                            </x-ui.empty-state>
+                        @endif
+                    </div>
+                @else
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse text-left">
+                            <thead>
+                                <tr class="h-10 bg-surface-container-low font-label-md text-label-md uppercase tracking-wider text-on-surface-variant">
+                                    <th class="px-space-md py-2.5">Collaborateur</th>
+                                    <th class="px-space-sm py-2.5">Département</th>
+                                    <th class="px-space-sm py-2.5 text-right">Brut</th>
+                                    <th class="px-space-sm py-2.5 text-right">Prime</th>
+                                    <th class="px-space-sm py-2.5 text-right">CNSS</th>
+                                    <th class="px-space-sm py-2.5 text-right">IRPP</th>
+                                    <th class="px-space-md py-2.5 text-right">Net</th>
+                                    <th class="px-space-sm py-2.5 text-center">Statut</th>
+                                    <th class="px-space-sm py-2.5 text-center">Aperçu</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-surface-container font-body-md text-body-md">
+                                @foreach ($payslips as $payslip)
+                                    @php
+                                        $isSelected = $selectedPayslip !== null && $selectedPayslip->id === $payslip->id;
+                                        $viewUrl = route('admin.payroll', array_merge($exportQuery, ['view' => $payslip->id]));
+                                    @endphp
+                                    <tr class="transition-colors hover:bg-surface-container-low {{ $isSelected ? 'bg-primary-container/5' : '' }}">
+                                        <td class="px-space-md py-3">
+                                            <div class="flex items-center gap-space-sm">
+                                                @if ($payslip->employee?->avatar_url)
+                                                    <img class="h-8 w-8 shrink-0 rounded-full object-cover" alt="" src="{{ $payslip->employee->avatar_url }}"/>
+                                                @else
+                                                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary-container font-bold text-label-sm text-on-secondary-container">
+                                                        {{ $payslip->employee?->initials() ?? '?' }}
+                                                    </div>
+                                                @endif
+                                                <div class="min-w-0">
+                                                    <p class="truncate font-headline-sm text-headline-sm leading-tight text-on-surface">{{ $payslip->employee?->name ?? 'Collaborateur' }}</p>
+                                                    <p class="font-mono font-label-sm text-label-sm text-on-surface-variant">{{ $payslip->matricule() }} · CIN {{ $payslip->employee?->cin ?: '—' }}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-space-sm py-3">
+                                            <span class="inline-block rounded bg-surface-container px-2 py-0.5 font-label-sm text-label-sm text-on-surface">{{ $payslip->employee?->departmentShortLabel() ?? '—' }}</span>
+                                        </td>
+                                        <td class="px-space-sm py-3 text-right font-numeric-md text-numeric-md text-on-surface">{{ $payslip->gross()->format(3) }}</td>
+                                        <td class="px-space-sm py-3 text-right font-numeric-md text-numeric-md text-on-surface-variant">+{{ $payslip->primeAmount()->format(3) }}</td>
+                                        <td class="px-space-sm py-3 text-right font-numeric-md text-numeric-md text-on-surface-variant">−{{ $payslip->cnssAmount()->format(3) }}</td>
+                                        <td class="px-space-sm py-3 text-right font-numeric-md text-numeric-md text-on-surface-variant">−{{ $payslip->irppAmount()->format(3) }}</td>
+                                        <td class="px-space-md py-3 text-right font-numeric-md text-numeric-md font-bold text-primary">{{ $payslip->netAmount()->format(3) }}</td>
+                                        <td class="px-space-sm py-3 text-center">
+                                            <x-ui.status-badge :tone="$payslip->statusTone()" :label="$payslip->statusLabel()" />
+                                        </td>
+                                        <td class="px-space-sm py-3 text-center">
+                                            <a class="inline-flex items-center justify-center rounded p-1 text-primary transition-colors hover:bg-surface-container focus:outline-none focus:ring-2 focus:ring-primary" href="{{ $viewUrl }}" aria-label="Aperçu du bulletin de {{ $payslip->employee?->name }}" title="Aperçu du bulletin">
+                                                <span class="material-symbols-outlined text-body-md">visibility</span>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="flex flex-wrap items-center justify-between gap-space-sm bg-surface-container-low p-space-md">
+                        <div class="flex flex-wrap items-center gap-space-sm font-body-sm text-body-sm text-on-surface-variant">
+                            <span>Affichage de {{ $payslips->firstItem() ?? 0 }} à {{ $payslips->lastItem() ?? 0 }} sur {{ $payslips->total() }} collaborateur(s)</span>
+                            <span class="text-outline-variant">•</span>
+                            <span>Total net de la page : <strong class="font-semibold text-on-surface">{{ $pageNet->format(3) }} TND</strong></span>
+                        </div>
+                        <x-ui.pagination :paginator="$payslips" />
+                    </div>
+                @endif
+            </div>
+
+            <div class="flex flex-col justify-between gap-space-md rounded-xl bg-surface-container-low p-space-md sm:flex-row sm:items-center">
+                <div class="flex items-start gap-space-sm">
+                    <span class="material-symbols-outlined text-headline-sm text-tertiary">info</span>
+                    <p class="font-body-sm text-body-sm text-on-surface">
+                        <strong>Paramètres appliqués :</strong> CNSS salariale {{ $rates['employeeCnss'] }} · CNSS patronale {{ $rates['employerCnss'] }} · CSS {{ $rates['css'] }} · Transport {{ $rates['transport']->format(3) }} TND. Ces valeurs sont configurables et à valider par la direction financière.
+                    </p>
+                </div>
+                <button class="whitespace-nowrap font-label-md text-label-md font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary" type="button" onclick="openDialog('bracketDialog')">
+                    Consulter le barème {{ $version }}
+                </button>
+            </div>
+        </div>
+
+        <div class="xl:col-span-4">
+            <div class="sticky top-20 flex flex-col justify-between rounded-xl bg-surface-container-lowest p-space-lg shadow-lg" id="slipPrintArea">
+                @if ($slip)
+                    <div>
+                        <div class="flex items-start justify-between gap-space-sm pb-space-md">
+                            <div>
+                                <span class="font-label-sm text-label-sm font-bold uppercase tracking-wider text-primary">Aperçu du bulletin</span>
+                                <h2 class="mt-0.5 font-headline-md text-headline-md font-bold tracking-tight text-on-surface">Bulletin de Paie</h2>
+                                <p class="font-body-sm text-body-sm text-on-surface-variant">Période : {{ $periodStart->format('d/m/Y') }} au {{ $periodEnd->format('d/m/Y') }}</p>
+                            </div>
+                            <x-ui.status-badge :tone="$selectedPayslip->statusTone()" :label="$selectedPayslip->statusLabel()" />
+                        </div>
+
+                        <div class="mb-space-md space-y-space-xs rounded-xl bg-surface-container-low p-space-md font-body-sm text-body-sm">
+                            <div class="flex items-center justify-between gap-space-sm text-on-surface-variant">
+                                <span>Société :</span>
+                                <strong class="text-right text-on-surface">{{ $company['name'] }}</strong>
+                            </div>
+                            <div class="flex items-center justify-between gap-space-sm text-on-surface-variant">
+                                <span>Affiliation CNSS :</span>
+                                <span class="font-mono text-on-surface">{{ $company['cnss'] }}</span>
+                            </div>
+                            <div class="my-1 h-px bg-surface-container"></div>
+                            <div class="flex items-center justify-between gap-space-sm text-on-surface">
+                                <span class="font-medium">Salarié :</span>
+                                <strong class="text-right font-semibold text-primary" id="slipName">{{ $slip['name'] }}</strong>
+                            </div>
+                            <div class="flex items-center justify-between gap-space-sm text-on-surface-variant">
+                                <span>CIN :</span>
+                                <span class="font-mono text-on-surface" id="slipCin">{{ $slip['cin'] }}</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-space-sm text-on-surface-variant">
+                                <span>Matricule :</span>
+                                <span class="font-mono text-on-surface">{{ $slip['matricule'] }}</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-space-sm text-on-surface-variant">
+                                <span>Emploi :</span>
+                                <span class="text-right font-medium text-on-surface" id="slipRole">{{ $slip['role'] }}</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-space-sm text-on-surface-variant">
+                                <span>Département :</span>
+                                <span class="text-on-surface" id="slipDepartment">{{ $slip['department'] }}</span>
+                            </div>
+                        </div>
+
+                        <div class="mb-space-md space-y-space-xs">
+                            <div class="flex items-center justify-between py-1 font-body-sm text-body-sm">
+                                <span class="text-on-surface">Salaire de base</span>
+                                <span class="font-numeric-md text-numeric-md font-medium text-on-surface" id="slipBase">{{ $slip['base'] }}</span>
+                            </div>
+                            <div class="flex items-center justify-between py-1 font-body-sm text-body-sm text-on-surface-variant">
+                                <span>Prime</span>
+                                <span class="font-numeric-md text-numeric-md text-on-surface" id="slipPrime">{{ $slip['prime'] }}</span>
+                            </div>
+                            <div class="flex items-center justify-between py-1 font-body-sm text-body-sm text-on-surface-variant">
+                                <span>Indemnité de transport</span>
+                                <span class="font-numeric-md text-numeric-md text-on-surface" id="slipTransport">{{ $slip['transport'] }}</span>
+                            </div>
+                            <div class="my-2 space-y-1.5 rounded-lg bg-surface-container/60 p-2.5">
+                                <div class="flex items-center justify-between font-body-sm text-body-sm">
+                                    <span class="font-medium text-error">CNSS salariale ({{ $rates['employeeCnss'] }})</span>
+                                    <span class="font-numeric-md text-numeric-md text-error" id="slipCnss">{{ $slip['cnss'] }}</span>
+                                </div>
+                                <div class="flex items-center justify-between font-body-sm text-body-sm">
+                                    <span class="text-on-surface-variant">Base imposable IRPP</span>
+                                    <span class="font-mono font-numeric-md text-numeric-md font-medium text-on-surface" id="slipTaxBase">{{ $slip['taxBase'] }}</span>
+                                </div>
+                                <div class="flex items-center justify-between font-body-sm text-body-sm">
+                                    <span class="font-medium text-error">IRPP ({{ $version }})</span>
+                                    <span class="font-numeric-md text-numeric-md text-error" id="slipIrpp">{{ $slip['irpp'] }}</span>
+                                </div>
+                                <div class="flex items-center justify-between font-body-sm text-body-sm">
+                                    <span class="font-medium text-error">CSS ({{ $rates['css'] }})</span>
+                                    <span class="font-numeric-md text-numeric-md text-error" id="slipCss">{{ $slip['css'] }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-space-sm rounded-xl bg-primary-container p-space-md text-on-primary shadow-md">
+                            <span class="font-label-sm text-label-sm uppercase tracking-wider opacity-90">Net à payer (virement bancaire)</span>
+                            <div class="mt-1 flex items-baseline justify-between">
+                                <span class="font-display-lg text-display-lg font-bold tracking-tight" id="slipNet">{{ $slip['net'] }}</span>
+                                <span class="font-headline-sm text-headline-sm font-semibold opacity-95">TND</span>
+                            </div>
+                            <p class="mt-1 font-body-sm text-body-sm italic opacity-90" id="slipInWords">« {{ $slip['words'] }} »</p>
+                        </div>
+                        <div class="mb-space-md flex items-center justify-between px-1 font-label-sm text-label-sm text-on-surface-variant">
+                            <span id="slipBank">Banque : {{ $slip['bank'] }}</span>
+                            <span class="font-mono" id="slipRib">{{ $slip['rib'] }}</span>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-space-xs pt-space-xs no-print">
+                        <button class="flex h-10 w-full items-center justify-center gap-space-xs rounded-xl bg-surface-container font-label-lg text-label-lg text-on-surface transition-colors hover:bg-surface-container-high focus:outline-none focus:ring-2 focus:ring-primary" type="button" onclick="window.print()">
+                            <span class="material-symbols-outlined text-body-md text-primary">print</span>
+                            <span>Imprimer le bulletin</span>
+                        </button>
+                        <a class="flex h-10 w-full items-center justify-center gap-space-xs rounded-xl bg-primary-container font-label-lg text-label-lg text-on-primary shadow-sm transition-all hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2" href="{{ $slip['downloadUrl'] }}">
+                            <span class="material-symbols-outlined text-body-md">download</span>
+                            <span>Télécharger le bulletin PDF</span>
+                        </a>
+                    </div>
+                @else
+                    <x-ui.empty-state icon="receipt_long" title="Aucun bulletin sélectionné" description="Sélectionnez un bulletin dans le registre pour afficher son aperçu." />
+                @endif
+            </div>
+        </div>
+    </div>
 </div>
-<div class="flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm px-1 mb-space-md">
-<span id="slipBank">Banque : {{ $slip['bank'] ?? '—' }}</span>
-<span class="font-mono" id="slipRib">{{ $slip['rib'] ?? 'RIB: —' }}</span>
-</div>
-</div>
-<!-- Action Buttons -->
-<div class="flex flex-col gap-space-xs pt-space-xs no-print">
-<button class="w-full h-10 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-label-lg text-label-lg flex items-center justify-center gap-space-xs transition-colors" type="button" onclick="window.print()">
-<span class="material-symbols-outlined text-body-md text-primary">print</span>
-<span>Imprimer Bulletin</span>
-</button>
-<a class="w-full h-10 rounded-xl bg-primary-container hover:bg-primary text-on-primary font-label-lg text-label-lg flex items-center justify-center gap-space-xs transition-all shadow-sm" id="downloadSlipBtn" href="{{ $slip['downloadUrl'] ?? '#' }}" @if (! $slip) onclick="return false" @endif>
-<span class="material-symbols-outlined text-body-md">download_done</span>
-<span>Télécharger PDF Signé Électroniquement</span>
-</a>
-</div>
-</div>
-</div>
-</div>
-<!-- Modal Barème IRPP -->
-<div class="hidden fixed inset-0 z-[70] bg-on-surface/40 backdrop-blur-sm flex items-center justify-center p-4" id="bracketModal" role="dialog" aria-modal="true" aria-labelledby="bracketModalTitle">
-<div class="w-full max-w-lg bg-surface-container-lowest rounded-xl shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto">
-<div class="flex items-start justify-between pb-4 border-b border-surface-container">
-<div>
-<h2 class="font-headline-md text-headline-md text-on-surface font-bold" id="bracketModalTitle">Barème IRPP {{ $periodStart->year }}</h2>
-<p class="font-body-sm text-body-sm text-on-surface-variant">Tranches annuelles appliquées après abattement de 5 000 TND par part fiscale.</p>
-</div>
-<button class="p-1 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors" onclick="document.getElementById('bracketModal').classList.add('hidden')" type="button" aria-label="Fermer">
-<span class="material-symbols-outlined text-body-lg">close</span>
-</button>
-</div>
-<div class="space-y-2">
-@foreach ([["Jusqu'à 5 000 TND", '0%'], ['5 001 à 20 000 TND', '26%'], ['20 001 à 30 000 TND', '28%'], ['30 001 à 40 000 TND', '32%'], ['40 001 à 50 000 TND', '34%'], ['50 001 à 70 000 TND', '36%'], ['Au-delà de 70 000 TND', '38%']] as $bracket)
-<div class="flex items-center justify-between px-3 py-2 rounded-lg bg-surface-container-low font-body-sm text-body-sm">
-<span class="text-on-surface">{{ $bracket[0] }}</span>
-<span class="font-numeric-md text-numeric-md font-bold text-primary">{{ $bracket[1] }}</span>
-</div>
-@endforeach
-</div>
-<div class="p-3 rounded-lg bg-surface-container-low font-label-sm text-label-sm text-on-surface-variant space-y-1">
-<p>CNSS salariale : 9.18% • CNSS patronale : 17.37% • CSS : 1% de la base imposable.</p>
-<p>Indemnité de transport légale : 100 TND / mois, non soumise à cotisation.</p>
-</div>
-<div class="flex justify-end pt-2">
-<button class="px-4 py-2 rounded-lg bg-primary-container font-label-md text-label-md text-on-primary hover:bg-primary transition-colors" onclick="document.getElementById('bracketModal').classList.add('hidden')" type="button">
-          Fermer
+
+<x-ui.modal id="generatePayrollDialog" title="Générer les bulletins" description="Crée uniquement les bulletins manquants pour {{ $periodLabel }}.">
+    <div class="space-y-space-sm font-body-sm text-body-sm text-on-surface-variant">
+        <p><strong class="text-on-surface">{{ $missingCount }}</strong> collaborateur(s) actif(s) sans bulletin · <strong class="text-on-surface">{{ $activeEmployees }}</strong> actif(s) au total.</p>
+        <p>Le salaire de base reprend le dernier bulletin connu ; à défaut, la grille du paramétrage {{ $version }} est utilisée. Les bulletins existants ne sont jamais modifiés.</p>
+    </div>
+    <form class="mt-space-lg flex flex-wrap justify-end gap-space-sm" method="POST" action="{{ route('admin.payroll.generate') }}">
+        @csrf
+        <input name="period" type="hidden" value="{{ $period }}"/>
+        <button class="rounded-xl bg-surface-container px-space-md py-2 font-label-md text-label-md text-on-surface transition-colors hover:bg-surface-container-high focus:outline-none focus:ring-2 focus:ring-primary" type="button" onclick="document.getElementById('generatePayrollDialog').close()">Annuler</button>
+        <button class="rounded-xl bg-primary-container px-space-lg py-2 font-label-md text-label-md text-on-primary shadow-sm transition-colors hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" type="submit" @disabled($missingCount === 0 || $activeEmployees === 0)>
+            {{ $missingCount === 0 ? 'Tous les bulletins existent' : 'Générer '.$missingCount.' bulletin(s)' }}
         </button>
-</div>
-</div>
-</div>
+    </form>
+</x-ui.modal>
+
+<x-ui.modal id="closePayrollDialog" title="Clôturer la période {{ $periodLabel }}" description="Les bulletins non payés seront marqués comme payés.">
+    <div class="space-y-space-sm font-body-sm text-body-sm text-on-surface-variant">
+        <p><strong class="text-on-surface">{{ $payslipCount - $paidCount }}</strong> bulletin(s) seront marqués payés avec la date du jour.</p>
+        <p>Cette action est définitive depuis l'interface. Vérifiez le journal de paie et les virements avant de clôturer.</p>
+    </div>
+    <form class="mt-space-lg flex flex-wrap justify-end gap-space-sm" method="POST" action="{{ route('admin.payroll.close') }}">
+        @csrf
+        <input name="period" type="hidden" value="{{ $period }}"/>
+        <button class="rounded-xl bg-surface-container px-space-md py-2 font-label-md text-label-md text-on-surface transition-colors hover:bg-surface-container-high focus:outline-none focus:ring-2 focus:ring-primary" type="button" onclick="document.getElementById('closePayrollDialog').close()">Annuler</button>
+        <button class="rounded-xl bg-primary-container px-space-lg py-2 font-label-md text-label-md text-on-primary shadow-sm transition-colors hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2" type="submit">
+            Clôturer et marquer payé
+        </button>
+    </form>
+</x-ui.modal>
+
+<x-ui.modal id="bracketDialog" title="Barème IRPP · paramétrage {{ $version }}" description="Tranches annuelles appliquées après abattement de {{ $rates['annualDeduction']->format(0) }} TND par part fiscale.">
+    <div class="space-y-2">
+        @foreach ($brackets as $bracket)
+            <div class="flex items-center justify-between rounded-lg bg-surface-container-low px-3 py-2 font-body-sm text-body-sm">
+                <span class="text-on-surface">{{ $bracket['label'] }}</span>
+                <span class="font-numeric-md text-numeric-md font-bold text-primary">{{ $bracket['rate'] }}</span>
+            </div>
+        @endforeach
+    </div>
+    <div class="mt-space-md space-y-1 rounded-lg bg-surface-container-low p-3 font-label-sm text-label-sm text-on-surface-variant">
+        <p>CNSS salariale : {{ $rates['employeeCnss'] }} · CNSS patronale : {{ $rates['employerCnss'] }} · CSS : {{ $rates['css'] }} de la base imposable.</p>
+        <p>Indemnité de transport : {{ $rates['transport']->format(3) }} TND, exclue du brut cotisable et de la base imposable selon le paramétrage actuel.</p>
+        <p>Parts fiscales : conjoint et enfants selon le paramétrage. Valeurs à valider par la direction financière.</p>
+    </div>
+    <div class="mt-space-lg flex justify-end">
+        <button class="rounded-lg bg-primary-container px-4 py-2 font-label-md text-label-md text-on-primary transition-colors hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2" type="button" onclick="document.getElementById('bracketDialog').close()">
+            Fermer
+        </button>
+    </div>
+</x-ui.modal>
+
 <style>
-  @media print {
-    body * { visibility: hidden; }
-    #slipPrintArea, #slipPrintArea * { visibility: visible; }
-    #slipPrintArea {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 100%;
-      max-width: 100%;
-      border-radius: 0;
-      box-shadow: none;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
+    @media print {
+        body * { visibility: hidden; }
+        #slipPrintArea, #slipPrintArea * { visibility: visible; }
+        #slipPrintArea {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            max-width: 100%;
+            border-radius: 0;
+            box-shadow: none;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .no-print { display: none !important; }
+        @page { margin: 12mm; }
     }
-    .no-print { display: none !important; }
-    @page { margin: 12mm; }
-  }
 </style>
 <script>
-  function selectPayslip(row) {
-    const data = JSON.parse(row.dataset.slip);
-    if (!data) return;
+    function openDialog(id) {
+        const dialog = document.getElementById(id);
 
-    document.getElementById("slipName").innerText = data.name;
-    document.getElementById("slipCin").innerText = data.cin;
-    document.getElementById("slipRole").innerText = data.role;
-    document.getElementById("slipBase").innerText = data.base;
-    document.getElementById("slipPrime").innerText = data.prime;
-    document.getElementById("slipTransport").innerText = data.transport;
-    document.getElementById("slipCnss").innerText = data.cnss;
-    document.getElementById("slipTaxBase").innerText = data.taxBase;
-    document.getElementById("slipIrpp").innerText = data.irpp;
-    document.getElementById("slipCss").innerText = data.css;
-    document.getElementById("slipNet").innerText = data.net;
-    document.getElementById("slipInWords").innerText = `"${data.words}"`;
-    document.getElementById("slipBank").innerText = "Banque : " + data.bank;
-    document.getElementById("slipRib").innerText = data.rib;
-
-    const downloadBtn = document.getElementById("downloadSlipBtn");
-    downloadBtn.href = data.downloadUrl;
-    downloadBtn.removeAttribute("onclick");
-
-    document.querySelectorAll("#payrollTableBody tr[data-slip]").forEach(function (item) {
-      item.classList.remove("bg-primary-container/5");
-    });
-    row.classList.add("bg-primary-container/5");
-
-    const url = new URL(window.location.href);
-    url.searchParams.set("view", data.id);
-    history.replaceState(null, "", url);
-  }
-
-  // Quick client search filter (server-side debounced)
-  const payrollSearch = document.getElementById("searchInput");
-  let payrollSearchTimer;
-  if (payrollSearch) {
-    payrollSearch.addEventListener("input", function () {
-      clearTimeout(payrollSearchTimer);
-      payrollSearchTimer = setTimeout(function () {
-        payrollSearch.form.requestSubmit();
-      }, 500);
-    });
-
-    payrollSearch.addEventListener("keydown", function (event) {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        payrollSearch.form.requestSubmit();
-      }
-    });
-  }
-
-  document.getElementById("bracketModal")?.addEventListener("click", function (event) {
-    if (event.target === this) {
-      this.classList.add("hidden");
+        if (dialog && !dialog.open) {
+            dialog.showModal();
+        }
     }
-  });
 
-  document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape") {
-      document.getElementById("bracketModal")?.classList.add("hidden");
+    document.querySelectorAll("dialog").forEach(function (dialog) {
+        dialog.addEventListener("click", function (event) {
+            if (event.target === dialog) {
+                dialog.close();
+            }
+        });
+    });
+
+    const payrollSearch = document.getElementById("payrollSearch");
+    let payrollSearchTimer;
+
+    if (payrollSearch) {
+        payrollSearch.addEventListener("input", function () {
+            clearTimeout(payrollSearchTimer);
+            payrollSearchTimer = setTimeout(function () {
+                payrollSearch.form.requestSubmit();
+            }, 500);
+        });
+
+        payrollSearch.addEventListener("keydown", function (event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                payrollSearch.form.requestSubmit();
+            }
+        });
     }
-  });
-
-  document.querySelectorAll("[data-flash-toast]").forEach(function (toast) {
-    setTimeout(function () { toast.remove(); }, 6000);
-  });
 </script>
-</div>
 </x-admin-shell>
