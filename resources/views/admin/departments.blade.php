@@ -1,536 +1,654 @@
 <x-admin-shell active="departments" title="Gestion des Départements">
 @php
-    $managerShort = function (?string $name): string {
-        if (! $name) {
-            return 'Lead à assigner';
-        }
-        $parts = preg_split('/\s+/', trim($name));
-        return strtoupper(substr($parts[0], 0, 1)).'. '.$parts[count($parts) - 1];
+    $hasFilters = $filters['q'] !== '' || $filters['sort'] !== 'headcount' || $filters['direction'] !== 'desc';
+
+    $departmentHint = match (true) {
+        $totals['departmentCount'] === 0 => 'Aucun département enregistré',
+        $totals['managerCount'] === $totals['departmentCount'] => 'Tous les départements ont un responsable',
+        default => $totals['managerCount'].' / '.$totals['departmentCount'].' départements avec un responsable',
     };
-    $treeWidth = max(320, $departmentCount * 170);
+
+    $headcountHint = $totals['unassigned'] === 0
+        ? 'Tous les collaborateurs actifs sont affectés'
+        : $totals['unassigned'].($totals['unassigned'] === 1 ? ' collaborateur non affecté' : ' collaborateurs non affectés');
+
+    $payrollHint = $totals['payslipCount'] === 0
+        ? 'Aucune fiche de paie pour '.$periodLabel
+        : ($totals['payslipCount'] === 1 ? '1 fiche de paie' : $totals['payslipCount'].' fiches de paie').' · '.$periodLabel;
+
+    $budgetHint = $totals['definedBudgets'] === 0
+        ? 'Aucun budget défini'
+        : $totals['conforming'].' / '.$totals['definedBudgets'].' budgets respectés · '.$totals['conformityRate'].' %';
 @endphp
-<div class="flex flex-col w-full pb-16 space-y-8">
-@if (session('success'))
-<div class="fixed bottom-4 left-4 right-4 sm:left-auto sm:bottom-6 sm:right-6 z-[80] sm:max-w-sm p-space-md rounded-xl bg-tertiary-fixed text-on-tertiary-fixed shadow-lg flex items-start gap-space-sm" data-flash-toast role="status">
-<span class="material-symbols-outlined text-body-lg shrink-0">check_circle</span>
-<span class="font-label-md text-label-md">{{ session('success') }}</span>
-<button class="ml-2 text-on-tertiary-fixed/70 hover:text-on-tertiary-fixed" type="button" onclick="this.parentElement.remove()" aria-label="Fermer">
-<span class="material-symbols-outlined text-body-md">close</span>
-</button>
-</div>
-@endif
-@if (session('error'))
-<div class="fixed bottom-4 left-4 right-4 sm:left-auto sm:bottom-6 sm:right-6 z-[80] sm:max-w-sm p-space-md rounded-xl bg-error-container text-on-error-container shadow-lg flex items-start gap-space-sm" data-flash-toast role="alert">
-<span class="material-symbols-outlined text-body-lg shrink-0">error</span>
-<span class="font-label-md text-label-md">{{ session('error') }}</span>
-<button class="ml-2 text-on-error-container/70 hover:text-on-error-container" type="button" onclick="this.parentElement.remove()" aria-label="Fermer">
-<span class="material-symbols-outlined text-body-md">close</span>
-</button>
-</div>
-@endif
-<!-- Breadcrumb & Top Bar -->
-<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-6">
-<div class="flex flex-col gap-1">
-<div class="flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant">
-<a class="hover:text-primary transition-colors" href="{{ route('admin.dashboard') }}">Accueil</a>
-<span class="material-symbols-outlined text-body-sm">chevron_right</span>
-<span class="text-on-surface font-semibold">Départements &amp; Structure</span>
-</div>
-<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Gestion des Départements</h1>
-<p class="font-body-sm text-body-sm text-on-surface-variant">
-        {{ $activeCount }} collaborateurs répartis sur {{ $departmentCount }} départements opérationnels • Carthage Tech Solutions SARL, Tunis Lac II
-      </p>
-</div>
-<!-- Actions & View Switcher -->
-<div class="flex items-center gap-3">
-<div class="bg-surface-container-low p-1 rounded-xl flex items-center shadow-sm">
-<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-primary font-label-md text-label-md shadow-sm transition-all" id="viewGridBtn" onclick="switchView('grid')">
-<span class="material-symbols-outlined text-body-sm">grid_view</span>
-<span>Vue Grille Cartes</span>
-</button>
-<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-all" id="viewTreeBtn" onclick="switchView('tree')">
-<span class="material-symbols-outlined text-body-sm">account_tree</span>
-<span>Vue Organigramme</span>
-</button>
-</div>
-<button class="h-9 px-4 rounded-xl bg-primary-container hover:bg-primary font-label-lg text-label-lg text-on-primary flex items-center gap-1.5 shadow-sm transition-all hover:shadow-md" onclick="openDeptModal()" type="button">
-<span class="material-symbols-outlined text-body-md">domain_add</span>
-<span>+ Nouveau Département</span>
-</button>
-</div>
-</div>
-<!-- KPI Summary Banner -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-<!-- Stat 1 -->
-<div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-shadow">
-<div class="absolute -right-3 -top-3 w-16 h-16 bg-primary-container/10 rounded-full blur-xl pointer-events-none"></div>
-<div class="flex items-center justify-between">
-<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Départements</span>
-<div class="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary">
-<span class="material-symbols-outlined text-headline-sm">apartment</span>
-</div>
-</div>
-<div class="mt-3 flex items-baseline gap-2">
-<span class="font-display-lg text-display-lg text-on-surface font-bold tracking-tight">{{ str_pad((string) $departmentCount, 2, '0', STR_PAD_LEFT) }}</span>
-<span class="font-label-sm text-label-sm text-on-surface-variant">Unités actives</span>
-</div>
-<div class="mt-2 flex items-center gap-1 font-label-sm text-label-sm {{ $leadCoverage >= 100 ? 'text-tertiary' : 'text-secondary' }}">
-<span class="material-symbols-outlined text-body-sm">{{ $leadCoverage >= 100 ? 'check_circle' : 'pending' }}</span>
-<span>{{ $leadCoverage >= 100 ? "Toutes pourvues d'un Lead" : $managerCount.' / '.$departmentCount.' leads assignés' }}</span>
-</div>
-</div>
-<!-- Stat 2 -->
-<div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-shadow">
-<div class="absolute -right-3 -top-3 w-16 h-16 bg-secondary-container/20 rounded-full blur-xl pointer-events-none"></div>
-<div class="flex items-center justify-between">
-<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Effectif Global</span>
-<div class="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-secondary">
-<span class="material-symbols-outlined text-headline-sm">groups</span>
-</div>
-</div>
-<div class="mt-3 flex items-baseline gap-2">
-<span class="font-display-lg text-display-lg text-on-surface font-bold tracking-tight">{{ $activeCount }}</span>
-<span class="font-label-sm text-label-sm text-on-surface-variant">Salariés déclarés</span>
-</div>
-<div class="mt-2 flex items-center gap-1 font-label-sm text-label-sm text-on-surface-variant">
-<span class="font-numeric-md text-numeric-md font-semibold text-primary">{{ $cnssAffiliationRate }}%</span>
-<span>Affiliés CNSS Tunisie</span>
-</div>
-</div>
-<!-- Stat 3 -->
-<div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-shadow">
-<div class="flex items-center justify-between">
-<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Managers de Pôle</span>
-<div class="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-container">
-<span class="material-symbols-outlined text-headline-sm">manage_accounts</span>
-</div>
-</div>
-<div class="mt-3 flex items-baseline gap-2">
-<span class="font-display-lg text-display-lg text-on-surface font-bold tracking-tight">{{ str_pad((string) $managerCount, 2, '0', STR_PAD_LEFT) }}</span>
-<span class="font-label-sm text-label-sm text-on-surface-variant">Cadres Dirigeants</span>
-</div>
-<div class="mt-2 flex items-center gap-1 font-label-sm text-label-sm text-tertiary">
-<span class="material-symbols-outlined text-body-sm">military_tech</span>
-<span>Ratio encadrement : 1 / {{ $leadershipRatio ?? '—' }}</span>
-</div>
-</div>
-<!-- Stat 4 -->
-<div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-shadow">
-<div class="absolute -right-3 -top-3 w-16 h-16 bg-tertiary-fixed/30 rounded-full blur-xl pointer-events-none"></div>
-<div class="flex items-center justify-between">
-<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Masse Salariale Brute</span>
-<div class="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-tertiary">
-<span class="material-symbols-outlined text-headline-sm">payments</span>
-</div>
-</div>
-<div class="mt-3 flex items-baseline gap-1">
-<span class="font-display-lg text-display-lg text-on-surface font-bold tracking-tight font-numeric-md">{{ number_format($totalGross, 0, ',', ' ') }}</span>
-<span class="font-label-sm text-label-sm text-on-surface-variant">TND / mois</span>
-</div>
-<div class="mt-2 flex items-center gap-1 font-label-sm text-label-sm text-on-surface-variant">
-<span class="w-2 h-2 rounded-full bg-tertiary"></span>
-<span>Budget conforme à {{ $budgetComplianceRate }}%</span>
-</div>
-</div>
-</div>
-<!-- VIEW 1: GRID MODE (Active by default) -->
-<div class="flex flex-col space-y-6" id="gridContainer">
-<!-- Filters & Search mini strip -->
-<div class="flex flex-col sm:flex-row items-center justify-between gap-3 bg-surface-container-lowest p-3 rounded-xl shadow-sm">
-<div class="flex items-center gap-2 w-full sm:w-auto">
-<div class="relative w-full sm:w-72">
-<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-body-md pointer-events-none">filter_list</span>
-<input class="w-full h-9 pl-9 pr-4 rounded-lg bg-surface-container-low font-body-sm text-body-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:bg-surface-container" id="deptSearchInput" onkeyup="filterDepartments()" placeholder="Filtrer par nom, lead, technologie..." type="text"/>
-</div>
-</div>
-<div class="flex items-center gap-2 text-on-surface-variant font-label-sm text-label-sm">
-<span>Trié par :</span>
-<button class="bg-surface-container-low px-2.5 py-1 rounded-md text-on-surface font-semibold flex items-center gap-1 hover:bg-surface-container transition-colors" id="sortDeptBtn" type="button">
-<span id="sortDeptLabel">Effectif décroissant</span>
-<span class="material-symbols-outlined text-body-sm" id="sortDeptIcon">arrow_downward</span>
-</button>
-</div>
-</div>
-<!-- Department Cards (3 columns grid) -->
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="departmentsCardsList">
-@foreach ($departments as $department)
-@php
-    $teamCount = (int) $department->team_count;
-    $occupancy = max(0, min(100, (int) $department->occupancy));
-    $metricValue = $department->metric_value ?: $occupancy.'%';
-    $filterText = $department->name.' '.($department->manager?->name ?? '').' '.implode(' ', $department->specialties ?? []).' '.implode(' ', $department->tags ?? []);
-@endphp
-<div class="dept-card bg-surface-container-lowest rounded-xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative group" data-count="{{ $teamCount }}" data-name="{{ strtolower($filterText) }}">
-<div class="space-y-4">
-<!-- Top Tag & Options -->
-<div class="flex items-start justify-between">
-<div class="flex items-center gap-2">
-<span class="w-2.5 h-2.5 rounded-full {{ $department->dot_color }}"></span>
-<span class="font-label-sm text-label-sm uppercase font-semibold {{ $department->text_color }}">{{ $department->tag ?? 'Département' }}</span>
-</div>
-<div class="flex items-center gap-1">
-<span class="px-2 py-0.5 rounded-full bg-surface-container font-numeric-md text-label-sm text-on-surface font-semibold">{{ $teamCount }} Collaborateurs</span>
-<button class="text-on-surface-variant hover:text-on-surface p-1 rounded-lg hover:bg-surface-container transition-colors js-edit-dept" data-department="{{ json_encode(['id' => $department->id, 'name' => $department->name, 'manager_id' => $department->manager_id, 'code' => $department->code, 'budget' => (float) $department->monthly_budget, 'description' => $department->description]) }}" title="Modifier le département" type="button">
-<span class="material-symbols-outlined text-body-md">more_vert</span>
-</button>
-</div>
-</div>
-<!-- Title & Description -->
-<div>
-<h3 class="font-headline-md text-headline-md text-on-surface font-bold tracking-tight">{{ $department->name }}</h3>
-<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">{{ $department->description ?: 'Périmètre opérationnel en cours de définition.' }}</p>
-</div>
-<!-- Manager Row -->
-<div class="bg-surface-container-low p-3 rounded-xl flex items-center justify-between">
-<div class="flex items-center gap-3 min-w-0">
-@if ($department->manager?->avatar_url)
-<img class="w-10 h-10 rounded-full object-cover shrink-0 shadow-sm" data-alt="Portrait professionnel de {{ $department->manager->name }}" src="{{ $department->manager->avatar_url }}"/>
-@else
-<div class="w-10 h-10 rounded-full bg-surface-container-high text-on-surface flex items-center justify-center font-label-md text-label-md font-bold shrink-0 shadow-sm">
-{{ $department->manager?->initials() ?? '?' }}
-</div>
-@endif
-<div class="flex flex-col min-w-0">
-<span class="font-label-md text-label-md text-on-surface font-bold truncate">{{ $department->manager?->name ?? 'Lead non assigné' }}</span>
-<span class="font-label-sm text-label-sm text-on-surface-variant truncate">{{ $department->manager ? $department->manager->position.' • '.$department->manager->email : 'Assignez un responsable de pôle' }}</span>
-</div>
-</div>
-@if ($department->manager)
-<a class="material-symbols-outlined text-on-surface-variant text-body-md shrink-0 ml-2 hover:text-primary transition-colors" href="mailto:{{ $department->manager->email }}" title="Contacter le responsable">mail</a>
-@else
-<span class="material-symbols-outlined text-on-surface-variant text-body-md shrink-0 ml-2">person_add</span>
-@endif
-</div>
-<!-- Sub-poles & Tags -->
-<div class="space-y-2">
-<div class="flex items-center justify-between font-label-sm text-label-sm">
-<span class="text-on-surface-variant">{{ $department->specialties_label }} :</span>
-<span class="font-semibold text-on-surface">{{ implode(', ', $department->specialties ?? []) ?: 'À définir' }}</span>
-</div>
-<div class="flex flex-wrap gap-1.5 pt-1">
-@forelse ($department->tags ?? [] as $tag)
-<span class="px-2 py-0.5 rounded-md bg-surface-container font-label-sm text-label-sm text-on-surface-variant">{{ $tag }}</span>
-@empty
-<span class="px-2 py-0.5 rounded-md bg-surface-container font-label-sm text-label-sm text-on-surface-variant">Aucun tag</span>
-@endforelse
-</div>
-</div>
-<!-- Workload & Budget metrics -->
-<div class="space-y-2 pt-2">
-<div class="flex items-center justify-between font-label-sm text-label-sm">
-<span class="text-on-surface-variant">{{ $department->occupancy_label }}</span>
-<span class="font-numeric-md font-bold {{ $department->metric_color }}">{{ $metricValue }}</span>
-</div>
-<div class="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
-<div class="h-full {{ $department->bar_color }} rounded-full" style="width: {{ $occupancy }}%"></div>
-</div>
-<div class="flex items-center justify-between pt-1">
-<span class="font-label-sm text-label-sm text-on-surface-variant">Budget Salarial Mensuel</span>
-<span class="font-numeric-md text-body-sm font-bold text-on-surface">{{ $department->monthly_budget > 0 ? number_format((float) $department->monthly_budget, 0, ',', ' ').' TND' : 'Non défini' }}</span>
-</div>
-</div>
-</div>
-<!-- Footer / Quick Links -->
-<div class="pt-5 mt-4 flex items-center justify-between">
-<div class="flex -space-x-2 overflow-hidden items-center">
-@foreach ($department->employees->take(3) as $member)
-@if ($member->avatar_url)
-<img class="inline-block h-6 w-6 rounded-full ring-2 ring-surface-container-lowest object-cover" data-alt="Portrait de {{ $member->name }}" src="{{ $member->avatar_url }}"/>
-@else
-<span class="inline-flex items-center justify-center h-6 w-6 rounded-full bg-surface-container-high text-on-surface font-label-sm text-label-sm font-bold ring-2 ring-surface-container-lowest">{{ $member->initials() }}</span>
-@endif
-@endforeach
-@if ($teamCount > 3)
-<span class="inline-flex items-center justify-center h-6 w-6 rounded-full bg-surface-container-high text-on-surface font-label-sm text-label-sm font-bold ring-2 ring-surface-container-lowest">+{{ $teamCount - 3 }}</span>
-@elseif ($teamCount === 0)
-<span class="font-label-sm text-label-sm text-on-surface-variant italic">Aucun membre affecté</span>
-@endif
-</div>
-<div class="flex items-center gap-1">
-<a class="px-2.5 py-1 rounded-lg text-primary hover:bg-surface-container-low font-label-sm text-label-sm font-semibold transition-colors" href="{{ route('admin.employees', ['department' => $department->slug]) }}">Voir l'équipe</a>
-<button class="p-1 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors js-edit-dept" data-department="{{ json_encode(['id' => $department->id, 'name' => $department->name, 'manager_id' => $department->manager_id, 'code' => $department->code, 'budget' => (float) $department->monthly_budget, 'description' => $department->description]) }}" title="Paramètres" type="button">
-<span class="material-symbols-outlined text-body-sm">settings</span>
-</button>
-</div>
-</div>
-</div>
-@endforeach
-<!-- Add Department Quick Placeholder Tile -->
-<div class="border-2 border-dashed border-outline-variant/60 rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-3 hover:border-primary transition-colors cursor-pointer group bg-surface/40 hover:bg-surface-container-low" id="addDeptTile" onclick="openDeptModal()">
-<div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant group-hover:bg-primary-container group-hover:text-on-primary transition-all">
-<span class="material-symbols-outlined text-headline-md">add</span>
-</div>
-<div>
-<h4 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Créer une structure</h4>
-<p class="font-body-sm text-body-sm text-on-surface-variant max-w-xs mt-1">Définissez un nouveau département, assignez un lead et associez une ligne budgétaire.</p>
-</div>
-<span class="font-label-md text-label-md text-primary font-bold group-hover:underline">Ajouter un département →</span>
-</div>
-</div>
-</div>
-<!-- VIEW 2: HIERARCHICAL ORG TREE (Hidden by default, toggled via JS) -->
-<div class="hidden flex-col space-y-6" id="treeContainer">
-<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm overflow-x-auto">
-<div class="min-w-[900px] flex flex-col items-center py-6">
-<!-- Level 0: Direction Générale -->
-<div class="flex flex-col items-center">
-<div class="bg-surface-container-low p-4 rounded-xl shadow-sm border border-outline-variant/30 w-72 flex items-center gap-3">
-<div class="w-12 h-12 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-sm shrink-0 font-bold">DG</div>
-<div class="flex flex-col min-w-0">
-<span class="font-label-sm text-label-sm text-primary font-bold uppercase">Direction Générale</span>
-<span class="font-label-lg text-label-lg text-on-surface font-bold truncate">{{ optional(auth()->user())->name ?? 'Direction Générale' }}</span>
-<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Président Directeur Général</span>
-</div>
-</div>
-<!-- Connecting stem -->
-<div class="w-0.5 h-8 bg-outline-variant"></div>
-</div>
-<!-- Cross Branch Line -->
-<div class="h-0.5 bg-outline-variant" style="width: {{ max(280, $treeWidth - 30) }}px"></div>
-<!-- Level 1: Department Directors -->
-<div class="flex justify-between pt-0" style="width: {{ $treeWidth }}px">
-@foreach ($departments as $department)
-<div class="flex flex-col items-center">
-<div class="w-0.5 h-6 bg-outline-variant"></div>
-<div class="bg-surface-container-lowest p-3 rounded-xl shadow-sm border border-outline-variant/30 w-40 flex flex-col items-center text-center">
-<span class="w-2 h-2 rounded-full {{ $department->dot_color }} mb-1"></span>
-<span class="font-label-sm text-label-sm font-bold text-on-surface">{{ \Illuminate\Support\Str::limit(str_replace(' & ', ' ', $department->name), 26) }}</span>
-<span class="font-body-sm text-body-sm text-on-surface-variant">{{ $managerShort($department->manager?->name) }}</span>
-<span class="mt-1 px-2 py-0.5 rounded-full bg-surface-container-low font-numeric-md text-label-sm font-semibold">{{ $department->team_count }} pers.</span>
-</div>
-<!-- Sub specialists mini stem -->
-<div class="w-0.5 h-4 bg-outline-variant"></div>
-<div class="bg-surface-container-low p-2 rounded-lg text-center w-36">
-<p class="font-label-sm text-label-sm text-on-surface-variant">{{ implode(' • ', $department->sub_teams ?? []) ?: 'Équipe en constitution' }}</p>
-</div>
-</div>
-@endforeach
-</div>
-</div>
-</div>
-</div>
-<!-- Tunisian Regulatory & Payroll Cross-Department Breakdown -->
-<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm space-y-4">
-<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-<div>
-<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Répartition Budgétaire &amp; Conformité Sociale (Tunisie)</h3>
-<p class="font-body-sm text-body-sm text-on-surface-variant">Consolidation des charges patronales CNSS (16.57%) et accidents de travail (0.5%) par département pour l'exercice {{ now()->year }}.</p>
-</div>
-<div class="flex items-center gap-2">
-<a class="px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container font-label-md text-label-md text-on-surface flex items-center gap-1.5 transition-colors" href="{{ route('admin.departments.export') }}">
-<span class="material-symbols-outlined text-body-sm">download</span>
-<span>Exporter CSV / PDF</span>
-</a>
-</div>
-</div>
-<!-- Interactive mini table -->
-<div class="overflow-x-auto">
-<table class="w-full text-left font-body-sm text-body-sm">
-<thead>
-<tr class="bg-surface-container-low text-on-surface-variant font-label-md text-label-md uppercase">
-<th class="py-3 px-4 rounded-l-lg">Département</th>
-<th class="py-3 px-4">Responsable</th>
-<th class="py-3 px-4 text-center">Effectif</th>
-<th class="py-3 px-4 text-right">Salaire Brut Total</th>
-<th class="py-3 px-4 text-right">Cotisations CNSS (Patronal)</th>
-<th class="py-3 px-4 text-center rounded-r-lg">Statut Conformité</th>
-</tr>
-</thead>
-<tbody class="text-on-surface divide-y divide-surface-container">
-@forelse ($departments as $department)
-<tr class="hover:bg-surface-container-low/50 transition-colors">
-<td class="py-3.5 px-4 font-semibold flex items-center gap-2">
-<span class="w-2 h-2 rounded-full {{ $department->dot_color }}"></span>
-<span>{{ $department->name }}</span>
-</td>
-<td class="py-3.5 px-4">{{ $department->manager?->name ?? 'Non assigné' }}</td>
-<td class="py-3.5 px-4 text-center font-numeric-md">{{ $department->team_count }}</td>
-<td class="py-3.5 px-4 text-right font-numeric-md font-semibold">{{ number_format((float) $department->gross_total, 3, '.', ',') }} TND</td>
-<td class="py-3.5 px-4 text-right font-numeric-md text-on-surface-variant">{{ number_format((float) $department->cnss_total, 3, '.', ',') }} TND</td>
-<td class="py-3.5 px-4 text-center">
-@if ($department->monthly_budget <= 0)
-<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-label-sm bg-surface-container text-on-surface-variant font-semibold">
-<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
-                Budget à définir
-              </span>
-@elseif ($department->within_budget)
-<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-label-sm bg-tertiary/10 text-tertiary font-semibold">
-<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
-                Conforme
-              </span>
-@else
-<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-label-sm bg-error-container text-on-error-container font-semibold">
-<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
-                Dépassement
-              </span>
-@endif
-</td>
-</tr>
-@empty
-<tr>
-<td class="py-6 px-4 text-center text-on-surface-variant" colspan="6">Aucun département enregistré.</td>
-</tr>
-@endforelse
-</tbody>
-</table>
-</div>
-</div>
-<!-- SLIDE-OVER MODAL: Nouveau Département / Modification -->
-<div class="hidden fixed inset-0 z-50 overflow-hidden bg-on-surface/40 backdrop-blur-sm flex justify-end" id="newDeptModal">
-<div class="w-full max-w-lg bg-surface-container-lowest h-full shadow-2xl p-6 flex flex-col justify-between overflow-y-auto">
-<form class="space-y-6 h-full flex flex-col justify-between" id="deptForm" method="POST" action="{{ route('admin.departments.store') }}">
-@csrf
-<input id="deptMethod" name="_method" type="hidden" value="POST"/>
-<div class="space-y-6">
-<div class="flex items-center justify-between pb-4 border-b border-surface-container">
-<div>
-<h2 class="font-headline-md text-headline-md text-on-surface font-bold" id="deptModalTitle">Nouveau Département</h2>
-<p class="font-body-sm text-body-sm text-on-surface-variant" id="deptModalSubtitle">Structuration organisationnelle • Carthage Tech</p>
-</div>
-<button class="p-1 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors" onclick="document.getElementById('newDeptModal').classList.add('hidden')" type="button">
-<span class="material-symbols-outlined text-body-lg">close</span>
-</button>
-</div>
-@if ($errors->any())
-<div class="p-3 rounded-lg bg-error-container text-on-error-container font-label-sm text-label-sm space-y-1">
-@foreach ($errors->all() as $error)
-<p>{{ $error }}</p>
-@endforeach
-</div>
-@endif
-<div class="space-y-4">
-<div class="space-y-1">
-<label class="font-label-sm text-label-sm font-semibold text-on-surface" for="deptName">Intitulé du Département</label>
-<input class="w-full h-10 px-3 rounded-lg bg-surface-container-low text-on-surface font-body-sm text-body-sm border border-outline-variant focus:border-primary focus:outline-none" id="deptName" name="name" placeholder="Ex: Data Intelligence &amp; IA" type="text" value="{{ old('name') }}" required/>
-</div>
-<div class="space-y-1">
-<label class="font-label-sm text-label-sm font-semibold text-on-surface" for="deptManager">Responsable de Pôle (Lead)</label>
-<select class="w-full h-10 px-3 rounded-lg bg-surface-container-low text-on-surface font-body-sm text-body-sm border border-outline-variant focus:border-primary focus:outline-none" id="deptManager" name="manager_id">
-<option value="">Sélectionner un collaborateur...</option>
-@foreach ($employees as $employee)
-<option value="{{ $employee->id }}" @selected((string) old('manager_id') === (string) $employee->id)>{{ $employee->name }} ({{ $employee->position }})</option>
-@endforeach
-</select>
-</div>
-<div class="space-y-1">
-<label class="font-label-sm text-label-sm font-semibold text-on-surface" for="deptCode">Code Analytique / Centre de Coûts</label>
-<input class="w-full h-10 px-3 rounded-lg bg-surface-container-low text-on-surface font-body-sm text-body-sm border border-outline-variant focus:border-primary focus:outline-none" id="deptCode" name="code" placeholder="Ex: CC-TECH-2025" type="text" value="{{ old('code') }}"/>
-</div>
-<div class="space-y-1">
-<label class="font-label-sm text-label-sm font-semibold text-on-surface" for="deptBudget">Budget Mensuel Estimé (TND)</label>
-<input class="w-full h-10 px-3 rounded-lg bg-surface-container-low text-on-surface font-body-sm text-body-sm border border-outline-variant focus:border-primary focus:outline-none" id="deptBudget" min="0" name="monthly_budget" placeholder="25000" step="0.001" type="number" value="{{ old('monthly_budget') }}"/>
-</div>
-<div class="space-y-1">
-<label class="font-label-sm text-label-sm font-semibold text-on-surface" for="deptDescription">Missions &amp; Objectifs</label>
-<textarea class="w-full p-3 rounded-lg bg-surface-container-low text-on-surface font-body-sm text-body-sm border border-outline-variant focus:border-primary focus:outline-none" id="deptDescription" name="description" placeholder="Décrivez succinctement le périmètre opérationnel..." rows="3">{{ old('description') }}</textarea>
-</div>
-</div>
-</div>
-<div class="pt-6 border-t border-surface-container flex items-center justify-end gap-3">
-<button class="px-4 py-2 rounded-lg bg-surface-container-low font-label-md text-label-md text-on-surface hover:bg-surface-container transition-colors" onclick="document.getElementById('newDeptModal').classList.add('hidden')" type="button">
-          Annuler
-        </button>
-<button class="px-4 py-2 rounded-lg bg-primary-container font-label-md text-label-md text-on-primary hover:bg-primary transition-colors" id="deptSubmitBtn" type="submit">
-<span id="deptSubmitLabel">Enregistrer le Département</span>
-        </button>
-</div>
-</form>
-</div>
-</div>
-<!-- Micro Interaction Script for Switch View & Search Filter -->
+<div class="flex w-full flex-col space-y-8 pb-16 pt-6">
+    <x-ui.toast />
+
+    {{-- En-tête --}}
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant">
+                <a class="transition-colors hover:text-primary" href="{{ route('admin.dashboard') }}">Accueil</a>
+                <span class="material-symbols-outlined text-body-sm" aria-hidden="true">chevron_right</span>
+                <span class="font-semibold text-on-surface">Départements &amp; Structure</span>
+            </div>
+            <h1 class="font-headline-lg text-headline-lg tracking-tight text-on-surface">Gestion des Départements</h1>
+            <p class="font-body-sm text-body-sm text-on-surface-variant">
+                {{ $totals['activeEmployees'] }} {{ $totals['activeEmployees'] === 1 ? 'collaborateur actif' : 'collaborateurs actifs' }}
+                · {{ $totals['departmentCount'] }} {{ $totals['departmentCount'] === 1 ? 'département' : 'départements' }}
+                · Paie de {{ $periodLabel }}
+            </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+            <a
+                class="inline-flex h-10 items-center gap-2 rounded-xl bg-surface-container-low px-4 font-label-md text-label-md text-on-surface transition-colors hover:bg-surface-container focus:outline-none focus:ring-2 focus:ring-primary"
+                href="{{ route('admin.departments.export', array_filter($filters)) }}"
+            >
+                <span class="material-symbols-outlined text-body-md" aria-hidden="true">download</span>
+                <span>Exporter CSV</span>
+            </a>
+            <button
+                class="inline-flex h-10 items-center gap-2 rounded-xl bg-primary-container px-4 font-label-md text-label-md text-on-primary transition-colors hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                type="button"
+                data-open-department-create
+            >
+                <span class="material-symbols-outlined text-body-md" aria-hidden="true">domain_add</span>
+                <span>Nouveau département</span>
+            </button>
+        </div>
+    </div>
+
+    {{-- Indicateurs --}}
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <x-ui.kpi-card
+            label="Départements"
+            :value="str_pad((string) $totals['departmentCount'], 2, '0', STR_PAD_LEFT)"
+            :hint="$departmentHint"
+            icon="apartment"
+            tone="primary"
+        />
+
+        <x-ui.kpi-card
+            label="Effectif actif"
+            :value="$totals['activeEmployees']"
+            :hint="$headcountHint"
+            icon="groups"
+            tone="secondary"
+        />
+
+        <x-ui.kpi-card
+            label="Masse salariale brute"
+            :value="$totals['totalGross']->format(0).' TND'"
+            :hint="$payrollHint"
+            icon="payments"
+            tone="tertiary"
+        />
+
+        <x-ui.kpi-card
+            label="Budget mensuel"
+            :value="$totals['totalBudget']->format(0).' TND'"
+            :hint="$budgetHint"
+            icon="account_balance_wallet"
+            tone="neutral"
+        />
+    </div>
+
+    {{-- Recherche et tri --}}
+    <form class="flex flex-col gap-3 rounded-xl bg-surface-container-lowest p-4 shadow-sm lg:flex-row lg:items-end" method="GET" action="{{ route('admin.departments') }}">
+        <div class="flex-1">
+            <label class="sr-only" for="department-search">Rechercher un département</label>
+            <div class="relative">
+                <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-body-md text-on-surface-variant" aria-hidden="true">search</span>
+                <input
+                    class="h-10 w-full rounded-lg bg-surface-container-low pl-10 pr-3 font-body-sm text-body-sm text-on-surface placeholder:text-on-surface-variant focus:bg-surface-container focus:outline-none focus:ring-2 focus:ring-primary"
+                    id="department-search"
+                    name="q"
+                    type="search"
+                    maxlength="100"
+                    value="{{ $filters['q'] }}"
+                    placeholder="Rechercher par nom, code ou responsable…"
+                />
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 sm:flex sm:items-center">
+            <div>
+                <label class="sr-only" for="department-sort">Trier par</label>
+                <select
+                    class="h-10 w-full rounded-lg bg-surface-container-low px-3 font-body-sm text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+                    id="department-sort"
+                    name="sort"
+                    onchange="this.form.submit()"
+                >
+                    <option value="headcount" @selected($filters['sort'] === 'headcount')>Effectif</option>
+                    <option value="name" @selected($filters['sort'] === 'name')>Nom</option>
+                    <option value="budget" @selected($filters['sort'] === 'budget')>Budget</option>
+                </select>
+            </div>
+            <div>
+                <label class="sr-only" for="department-direction">Ordre de tri</label>
+                <select
+                    class="h-10 w-full rounded-lg bg-surface-container-low px-3 font-body-sm text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+                    id="department-direction"
+                    name="direction"
+                    onchange="this.form.submit()"
+                >
+                    <option value="desc" @selected($filters['direction'] === 'desc')>Décroissant</option>
+                    <option value="asc" @selected($filters['direction'] === 'asc')>Croissant</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button
+                class="inline-flex h-10 items-center gap-2 rounded-lg bg-primary-container px-4 font-label-md text-label-md text-on-primary transition-colors hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                type="submit"
+            >
+                <span class="material-symbols-outlined text-body-md" aria-hidden="true">search</span>
+                <span>Rechercher</span>
+            </button>
+            @if ($hasFilters)
+                <a
+                    class="inline-flex h-10 items-center rounded-lg px-3 font-label-md text-label-md text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+                    href="{{ route('admin.departments') }}"
+                >
+                    Réinitialiser
+                </a>
+            @endif
+        </div>
+    </form>
+
+    {{-- Cartes des départements --}}
+    <section class="space-y-4" aria-labelledby="departments-heading">
+        <div class="flex items-end justify-between gap-3">
+            <div>
+                <h2 class="font-headline-sm text-headline-sm font-semibold text-on-surface" id="departments-heading">Départements</h2>
+                <p class="font-body-sm text-body-sm text-on-surface-variant">
+                    {{ $departments->total() }} {{ $departments->total() === 1 ? 'département' : 'départements' }}
+                    @if ($hasFilters)
+                        · filtres actifs
+                    @endif
+                </p>
+            </div>
+            <p class="hidden font-label-sm text-label-sm text-on-surface-variant sm:block">Masse salariale brute · sans charges patronales</p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+            @forelse ($departments as $summary)
+                @php
+                    $department = $summary->department;
+                    $variance = $summary->variance();
+                    $editPayload = [
+                        'id' => $department->id,
+                        'name' => $department->name,
+                        'manager_id' => $department->manager_id !== null ? (string) $department->manager_id : '',
+                        'code' => $department->code ?? '',
+                        'budget' => $summary->budget->isZero() ? '' : $summary->budget->toDecimalString(),
+                        'description' => $department->description ?? '',
+                    ];
+                    $deletePayload = [
+                        'id' => $department->id,
+                        'name' => $department->name,
+                        'slug' => $department->slug,
+                        'employees' => (int) $department->employees_count,
+                        'locked' => $summary->canViewTeam(),
+                    ];
+                @endphp
+
+                <article class="flex flex-col rounded-xl bg-surface-container-lowest p-5 shadow-sm transition-shadow hover:shadow-md">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="truncate font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">{{ $department->code ?: 'Département' }}</p>
+                            <h3 class="mt-1 truncate font-headline-sm text-headline-sm font-semibold text-on-surface" title="{{ $department->name }}">{{ $department->name }}</h3>
+                        </div>
+                        <x-ui.status-badge :tone="$summary->budgetStatus->tone()" :label="$summary->budgetStatus->label()" />
+                    </div>
+
+                    <p class="mt-2 min-h-[36px] font-body-sm text-body-sm text-on-surface-variant">{{ $department->description ?: 'Aucune description renseignée.' }}</p>
+
+                    <div class="mt-4 flex items-center gap-3 rounded-xl bg-surface-container-low p-3">
+                        @if ($department->manager?->avatar_url)
+                            <img class="h-10 w-10 shrink-0 rounded-full object-cover" src="{{ $department->manager->avatar_url }}" alt="Portrait de {{ $department->manager->name }}"/>
+                        @else
+                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-container-high font-label-md text-label-md font-bold text-on-surface" aria-hidden="true">
+                                {{ $department->manager?->initials() ?? '—' }}
+                            </span>
+                        @endif
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate font-label-md text-label-md font-semibold text-on-surface">{{ $department->manager?->name ?? 'Responsable non assigné' }}</p>
+                            <p class="truncate font-label-sm text-label-sm text-on-surface-variant">{{ $department->manager ? ($department->manager->position ?: $department->manager->email ?: 'Responsable de département') : 'Assignez un responsable pour ce département.' }}</p>
+                        </div>
+                        @if ($department->manager?->email)
+                            <a
+                                class="shrink-0 rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                                href="mailto:{{ $department->manager->email }}"
+                                aria-label="Contacter {{ $department->manager->name }}"
+                            >
+                                <span class="material-symbols-outlined text-body-md" aria-hidden="true">mail</span>
+                            </a>
+                        @endif
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-2 gap-3">
+                        <div class="rounded-lg bg-surface-container-low p-3">
+                            <p class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Effectif actif</p>
+                            <p class="mt-1 font-numeric-md text-numeric-md font-semibold text-on-surface">{{ $summary->headcount }}</p>
+                        </div>
+                        <div class="rounded-lg bg-surface-container-low p-3">
+                            <p class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Masse salariale</p>
+                            <p class="mt-1 font-semibold text-on-surface">
+                                <x-ui.money :value="$summary->gross" :decimals="3" />
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 space-y-2">
+                        <div class="flex items-center justify-between gap-2 font-label-sm text-label-sm">
+                            <span class="text-on-surface-variant">Budget mensuel</span>
+                            @if ($summary->budgetStatus->value === 'undefined')
+                                <span class="font-semibold text-on-surface-variant">Non défini</span>
+                            @else
+                                <x-ui.money :value="$summary->budget" :decimals="3" class="font-semibold text-on-surface" />
+                            @endif
+                        </div>
+
+                        @if ($summary->budgetStatus->value === 'undefined')
+                            <p class="font-label-sm text-label-sm text-on-surface-variant">Définissez un budget pour suivre la consommation salariale.</p>
+                        @else
+                            <div class="h-1.5 overflow-hidden rounded-full bg-surface-container" aria-hidden="true">
+                                <div
+                                    class="h-full rounded-full {{ $summary->budgetStatus->value === 'over' ? 'bg-error' : 'bg-tertiary' }}"
+                                    style="width: {{ min(100, max(0, $summary->usagePercent ?? 0)) }}%"
+                                ></div>
+                            </div>
+                            <div class="flex items-center justify-between gap-2 font-label-sm text-label-sm">
+                                <span class="text-on-surface-variant">Consommé : {{ $summary->usagePercent ?? 0 }} %</span>
+                                @if ($variance !== null && $variance->millimes() < 0)
+                                    <span class="font-semibold text-error">
+                                        Dépassement de <x-ui.money :value="$variance->abs()" :decimals="3" />
+                                    </span>
+                                @elseif ($variance !== null)
+                                    <span class="font-semibold text-tertiary">
+                                        Marge de <x-ui.money :value="$variance" :decimals="3" />
+                                    </span>
+                                @endif
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="mt-5 flex flex-col gap-3 border-t border-surface-container pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="flex items-center">
+                            @if ($summary->headcount === 0)
+                                <span class="font-label-sm text-label-sm italic text-on-surface-variant">Aucun collaborateur actif</span>
+                            @else
+                                <div class="flex -space-x-2">
+                                    @foreach ($summary->avatars as $member)
+                                        @if ($member->avatar_url)
+                                            <img class="inline-block h-7 w-7 rounded-full object-cover ring-2 ring-surface-container-lowest" src="{{ $member->avatar_url }}" alt="Portrait de {{ $member->name }}"/>
+                                        @else
+                                            <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-surface-container-high font-label-sm text-label-sm font-bold text-on-surface ring-2 ring-surface-container-lowest" aria-hidden="true">{{ $member->initials() }}</span>
+                                        @endif
+                                    @endforeach
+                                    @if ($summary->headcount > 3)
+                                        <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-surface-container-high font-label-sm text-label-sm font-bold text-on-surface ring-2 ring-surface-container-lowest">+{{ $summary->headcount - 3 }}</span>
+                                    @endif
+                                </div>
+                            @endif
+                        </div>
+
+                        <div class="flex items-center gap-1">
+                            @if ($summary->canViewTeam())
+                                <a
+                                    class="rounded-lg px-2.5 py-1.5 font-label-sm text-label-sm font-semibold text-primary transition-colors hover:bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary"
+                                    href="{{ route('admin.employees', ['department' => $department->slug]) }}"
+                                >
+                                    Voir l'équipe
+                                </a>
+                            @endif
+                            <button
+                                class="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 font-label-sm text-label-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+                                type="button"
+                                data-edit-department="{{ json_encode($editPayload) }}"
+                                aria-label="Modifier {{ $department->name }}"
+                            >
+                                <span class="material-symbols-outlined text-body-sm" aria-hidden="true">edit</span>
+                                <span>Modifier</span>
+                            </button>
+                            <button
+                                class="rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-error-container hover:text-on-error-container focus:outline-none focus:ring-2 focus:ring-error"
+                                type="button"
+                                data-delete-department="{{ json_encode($deletePayload) }}"
+                                aria-label="Supprimer {{ $department->name }}"
+                                title="Supprimer le département"
+                            >
+                                <span class="material-symbols-outlined text-body-sm" aria-hidden="true">delete</span>
+                            </button>
+                        </div>
+                    </div>
+                </article>
+            @empty
+                <div class="md:col-span-2 xl:col-span-3">
+                    @if ($filters['q'] !== '')
+                        <x-ui.empty-state
+                            icon="search_off"
+                            title="Aucun résultat"
+                            :description="'Aucun département ne correspond à « '.$filters['q'].' ».'"
+                        >
+                            <a
+                                class="inline-flex h-9 items-center rounded-lg bg-surface-container-low px-4 font-label-md text-label-md text-on-surface transition-colors hover:bg-surface-container focus:outline-none focus:ring-2 focus:ring-primary"
+                                href="{{ route('admin.departments') }}"
+                            >
+                                Effacer la recherche
+                            </a>
+                        </x-ui.empty-state>
+                    @else
+                        <x-ui.empty-state
+                            icon="apartment"
+                            title="Aucun département"
+                            description="Créez une structure pour suivre son effectif, sa masse salariale et son budget mensuel."
+                        >
+                            <button
+                                class="inline-flex h-9 items-center gap-2 rounded-lg bg-primary-container px-4 font-label-md text-label-md text-on-primary transition-colors hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                                type="button"
+                                data-open-department-create
+                            >
+                                <span class="material-symbols-outlined text-body-md" aria-hidden="true">domain_add</span>
+                                <span>Créer un département</span>
+                            </button>
+                        </x-ui.empty-state>
+                    @endif
+                </div>
+            @endforelse
+        </div>
+
+        <x-ui.pagination :paginator="$departments" />
+    </section>
+
+    {{-- Synthèse budgétaire --}}
+    <section class="space-y-3" aria-labelledby="budget-heading">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <h2 class="font-headline-sm text-headline-sm font-semibold text-on-surface" id="budget-heading">Synthèse budgétaire</h2>
+                <p class="font-body-sm text-body-sm text-on-surface-variant">Masse salariale brute comparée au budget mensuel pour la paie de {{ $periodLabel }}.</p>
+            </div>
+            <a
+                class="inline-flex items-center gap-1.5 font-label-sm text-label-sm font-semibold text-primary transition-colors hover:text-primary-container focus:outline-none focus:ring-2 focus:ring-primary"
+                href="{{ route('admin.departments.export', array_filter($filters)) }}"
+            >
+                <span class="material-symbols-outlined text-body-sm" aria-hidden="true">download</span>
+                <span>Télécharger la synthèse complète</span>
+            </a>
+        </div>
+
+        <div class="overflow-hidden rounded-xl bg-surface-container-lowest shadow-sm">
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-[820px] text-left font-body-sm text-body-sm">
+                    <caption class="sr-only">Synthèse budgétaire par département pour la paie de {{ $periodLabel }}</caption>
+                    <thead>
+                        <tr class="bg-surface-container-low font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">
+                            <th class="px-4 py-3 font-semibold" scope="col">Département</th>
+                            <th class="px-4 py-3 font-semibold" scope="col">Responsable</th>
+                            <th class="px-4 py-3 text-center font-semibold" scope="col">Effectif</th>
+                            <th class="px-4 py-3 text-right font-semibold" scope="col">Masse salariale</th>
+                            <th class="px-4 py-3 text-right font-semibold" scope="col">Budget</th>
+                            <th class="px-4 py-3 text-right font-semibold" scope="col">Écart</th>
+                            <th class="px-4 py-3 text-center font-semibold" scope="col">Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-surface-container">
+                        @forelse ($departments as $summary)
+                            @php($rowVariance = $summary->variance())
+                            <tr class="transition-colors hover:bg-surface-container-low/50">
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-semibold text-on-surface">{{ $summary->department->name }}</span>
+                                        @if ($summary->department->code)
+                                            <span class="rounded bg-surface-container px-1.5 py-0.5 font-label-sm text-label-sm text-on-surface-variant">{{ $summary->department->code }}</span>
+                                        @endif
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 text-on-surface-variant">{{ $summary->department->manager?->name ?? 'Non assigné' }}</td>
+                                <td class="px-4 py-3 text-center font-numeric-md text-numeric-md text-on-surface">{{ $summary->headcount }}</td>
+                                <td class="px-4 py-3 text-right">
+                                    <x-ui.money :value="$summary->gross" :decimals="3" class="font-semibold text-on-surface" />
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    @if ($summary->budgetStatus->value === 'undefined')
+                                        <span class="text-on-surface-variant">—</span>
+                                    @else
+                                        <x-ui.money :value="$summary->budget" :decimals="3" class="text-on-surface" />
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    @if ($rowVariance === null)
+                                        <span class="text-on-surface-variant">—</span>
+                                    @elseif ($rowVariance->millimes() < 0)
+                                        <x-ui.money :value="$rowVariance" :decimals="3" :signed="true" class="font-semibold text-error" />
+                                    @else
+                                        <x-ui.money :value="$rowVariance" :decimals="3" :signed="true" class="font-semibold text-tertiary" />
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <x-ui.status-badge :tone="$summary->budgetStatus->tone()" :label="$summary->budgetStatus->label()" />
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td class="px-4 py-8 text-center font-body-sm text-body-sm text-on-surface-variant" colspan="7">
+                                    Aucun département à afficher.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <p class="font-label-sm text-label-sm text-on-surface-variant">Montants bruts (salaire de base et primes), hors charges patronales. La synthèse affiche la page courante ; l'export CSV couvre l'ensemble des départements filtrés.</p>
+    </section>
+
+    <x-admin.department-form-dialog :employees="$employees" />
+
+    {{-- Confirmation de suppression --}}
+    <x-ui.modal
+        id="department-delete-dialog"
+        title="Supprimer le département"
+        description="Cette action est définitive et ne peut pas être annulée."
+    >
+        <p class="font-body-md text-body-md text-on-surface-variant">
+            Vous êtes sur le point de supprimer <strong class="font-semibold text-on-surface" id="department-delete-name"></strong>.
+        </p>
+
+        <div class="mt-4 hidden rounded-lg bg-error-container p-3 text-on-error-container" id="department-delete-blocked">
+            <p class="font-body-sm text-body-sm" id="department-delete-reason"></p>
+            <a
+                class="mt-2 inline-flex items-center gap-1 font-label-sm text-label-sm font-semibold underline underline-offset-2 focus:outline-none focus:ring-2 focus:ring-on-error-container"
+                id="department-delete-team-link"
+                href="{{ route('admin.employees') }}"
+            >
+                Voir les collaborateurs concernés
+            </a>
+        </div>
+
+        <form class="mt-5 flex flex-col-reverse gap-3 border-t border-surface-container pt-5 sm:flex-row sm:justify-end" id="department-delete-form" method="POST" action="{{ route('admin.departments') }}">
+            @csrf
+            @method('DELETE')
+            <button
+                class="h-10 rounded-lg bg-surface-container-low px-4 font-label-md text-label-md text-on-surface transition-colors hover:bg-surface-container focus:outline-none focus:ring-2 focus:ring-primary"
+                type="button"
+                onclick="document.getElementById('department-delete-dialog').close()"
+            >
+                Annuler
+            </button>
+            <button
+                class="h-10 rounded-lg bg-error px-4 font-label-md text-label-md text-on-error transition-colors hover:bg-error/90 focus:outline-none focus:ring-2 focus:ring-error focus:ring-offset-2"
+                id="department-delete-submit"
+                type="submit"
+            >
+                Supprimer définitivement
+            </button>
+        </form>
+    </x-ui.modal>
+</div>
+
 <script>
-    function switchView(mode) {
-      const gridBtn = document.getElementById('viewGridBtn');
-      const treeBtn = document.getElementById('viewTreeBtn');
-      const gridContainer = document.getElementById('gridContainer');
-      const treeContainer = document.getElementById('treeContainer');
+    (function () {
+        const formDialog = document.getElementById('department-form-dialog');
+        const form = document.getElementById('department-form');
 
-      if (mode === 'grid') {
-        gridContainer.classList.remove('hidden');
-        treeContainer.classList.add('hidden');
-        gridBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-primary font-label-md text-label-md shadow-sm transition-all';
-        treeBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-all';
-      } else {
-        gridContainer.classList.add('hidden');
-        treeContainer.classList.remove('hidden');
-        treeContainer.classList.add('flex');
-        treeBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-primary font-label-md text-label-md shadow-sm transition-all';
-        gridBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-all';
-      }
-    }
-
-    function filterDepartments() {
-      const query = document.getElementById('deptSearchInput').value.toLowerCase();
-      const cards = document.querySelectorAll('.dept-card');
-      cards.forEach(card => {
-        const dataName = (card.getAttribute('data-name') || '').toLowerCase();
-        if (dataName.includes(query)) {
-          card.style.display = '';
-        } else {
-          card.style.display = 'none';
+        if (!formDialog || !form) {
+            return;
         }
-      });
-    }
 
-    function openDeptModal(department) {
-      const modal = document.getElementById('newDeptModal');
-      const form = document.getElementById('deptForm');
-      if (!modal || !form) return;
+        const formTitle = document.getElementById('department-form-dialog-title');
+        const submitLabel = document.getElementById('department-submit-label');
+        const modeInput = document.getElementById('department-form-mode');
+        const idInput = document.getElementById('department-dialog-id');
+        const methodInput = document.getElementById('department-dialog-method');
+        const createNotice = document.getElementById('department-create-notice');
+        const nameInput = document.getElementById('department-name');
+        const managerSelect = document.getElementById('department-manager');
+        const codeInput = document.getElementById('department-code');
+        const budgetInput = document.getElementById('department-budget');
+        const descriptionInput = document.getElementById('department-description');
+        const storeUrl = @json(route('admin.departments.store'));
+        const updateBase = @json(url('/admin/departments'));
 
-      const isEdit = !!department;
-      const storeAction = "{{ route('admin.departments.store') }}";
-      const updateBase = "{{ url('/admin/departments') }}";
-
-      document.getElementById('deptModalTitle').textContent = isEdit ? 'Modifier le Département' : 'Nouveau Département';
-      document.getElementById('deptModalSubtitle').textContent = isEdit ? 'Mise à jour structurelle • Carthage Tech' : 'Structuration organisationnelle • Carthage Tech';
-      document.getElementById('deptSubmitLabel').textContent = isEdit ? 'Enregistrer les modifications' : 'Enregistrer le Département';
-
-      form.action = isEdit ? updateBase + '/' + department.id : storeAction;
-      document.getElementById('deptMethod').value = isEdit ? 'PUT' : 'POST';
-      document.getElementById('deptName').value = isEdit ? (department.name || '') : '';
-      document.getElementById('deptManager').value = isEdit && department.manager_id ? String(department.manager_id) : '';
-      document.getElementById('deptCode').value = isEdit ? (department.code || '') : '';
-      document.getElementById('deptBudget').value = isEdit && department.budget ? department.budget : '';
-      document.getElementById('deptDescription').value = isEdit ? (department.description || '') : '';
-
-      modal.classList.remove('hidden');
-    }
-
-    document.querySelectorAll('.js-edit-dept').forEach(function(button) {
-      button.addEventListener('click', function() {
-        try {
-          openDeptModal(JSON.parse(button.dataset.department));
-        } catch (error) {
-          openDeptModal();
+        function clearServerErrors() {
+            form.querySelectorAll('[aria-invalid="true"]').forEach(function (field) {
+                field.removeAttribute('aria-invalid');
+            });
+            form.querySelectorAll('[id$="-error"]').forEach(function (message) {
+                message.remove();
+            });
+            form.querySelectorAll('.border-error').forEach(function (field) {
+                field.classList.remove('border-error');
+                field.classList.add('border-outline-variant');
+            });
         }
-      });
-    });
 
-    let departmentsSortDescending = true;
-    const sortDeptBtn = document.getElementById('sortDeptBtn');
-    if (sortDeptBtn) {
-      sortDeptBtn.addEventListener('click', function() {
-        departmentsSortDescending = !departmentsSortDescending;
-        const list = document.getElementById('departmentsCardsList');
-        const tile = document.getElementById('addDeptTile');
-        const cards = Array.from(list.querySelectorAll('.dept-card'));
-        cards.sort(function(a, b) {
-          const diff = parseInt(a.dataset.count || '0', 10) - parseInt(b.dataset.count || '0', 10);
-          return departmentsSortDescending ? -diff : diff;
+        function openFormDialog() {
+            formDialog.showModal();
+            window.setTimeout(function () {
+                const invalid = form.querySelector('[aria-invalid="true"]');
+                (invalid || nameInput).focus();
+            }, 30);
+        }
+
+        function selectManager(managerId) {
+            managerSelect.querySelectorAll('option[data-temporary]').forEach(function (option) {
+                option.remove();
+            });
+
+            managerSelect.value = managerId || '';
+
+            if (managerId && managerSelect.value !== String(managerId)) {
+                const option = document.createElement('option');
+                option.value = managerId;
+                option.textContent = 'Responsable actuel';
+                option.dataset.temporary = 'true';
+                managerSelect.appendChild(option);
+                managerSelect.value = String(managerId);
+            }
+        }
+
+        function prepareCreate() {
+            clearServerErrors();
+            formTitle.textContent = 'Nouveau département';
+            submitLabel.textContent = 'Créer le département';
+            form.action = storeUrl;
+            modeInput.value = 'create';
+            idInput.value = '';
+            methodInput.value = 'POST';
+            nameInput.value = '';
+            selectManager('');
+            codeInput.value = '';
+            budgetInput.value = '';
+            descriptionInput.value = '';
+            createNotice.classList.remove('hidden');
+            openFormDialog();
+        }
+
+        function prepareEdit(data) {
+            clearServerErrors();
+            formTitle.textContent = 'Modifier le département';
+            submitLabel.textContent = 'Enregistrer les modifications';
+            form.action = updateBase + '/' + data.id;
+            modeInput.value = 'edit';
+            idInput.value = data.id;
+            methodInput.value = 'PUT';
+            nameInput.value = data.name || '';
+            codeInput.value = data.code || '';
+            budgetInput.value = data.budget || '';
+            descriptionInput.value = data.description || '';
+            selectManager(data.manager_id);
+            createNotice.classList.add('hidden');
+            openFormDialog();
+        }
+
+        document.querySelectorAll('[data-open-department-create]').forEach(function (button) {
+            button.addEventListener('click', prepareCreate);
         });
-        cards.forEach(function(card) { list.insertBefore(card, tile); });
-        document.getElementById('sortDeptLabel').textContent = departmentsSortDescending ? 'Effectif décroissant' : 'Effectif croissant';
-        document.getElementById('sortDeptIcon').textContent = departmentsSortDescending ? 'arrow_downward' : 'arrow_upward';
-      });
-    }
 
-    @if ($errors->any())
-    openDeptModal();
-    @endif
+        document.querySelectorAll('[data-edit-department]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                try {
+                    prepareEdit(JSON.parse(button.dataset.editDepartment));
+                } catch (error) {
+                    prepareCreate();
+                }
+            });
+        });
 
-    document.querySelectorAll('[data-flash-toast]').forEach(function(toast) {
-      setTimeout(function() { toast.remove(); }, 6000);
-    });
-  </script>
-</div>
+        const deleteDialog = document.getElementById('department-delete-dialog');
+        const deleteForm = document.getElementById('department-delete-form');
+        const deleteName = document.getElementById('department-delete-name');
+        const deleteSubmit = document.getElementById('department-delete-submit');
+        const deleteBlocked = document.getElementById('department-delete-blocked');
+        const deleteReason = document.getElementById('department-delete-reason');
+        const deleteTeamLink = document.getElementById('department-delete-team-link');
+        const employeesUrl = @json(route('admin.employees'));
+        const deleteBase = @json(url('/admin/departments'));
+
+        document.querySelectorAll('[data-delete-department]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const data = JSON.parse(button.dataset.deleteDepartment);
+                const attached = Number(data.employees || 0);
+                const blocked = Boolean(data.locked) || attached > 0;
+
+                deleteName.textContent = '« ' + data.name + ' »';
+                deleteForm.action = deleteBase + '/' + data.id;
+                deleteSubmit.classList.toggle('hidden', blocked);
+                deleteBlocked.classList.toggle('hidden', !blocked);
+
+                if (data.locked) {
+                    deleteReason.textContent = 'Ce département est une structure de référence du module Collaborateurs et ne peut pas être supprimé.'
+                        + (attached > 0 ? ' ' + attached + (attached === 1 ? ' collaborateur y est rattaché.' : ' collaborateurs y sont rattachés.') : '');
+                } else if (attached > 0) {
+                    deleteReason.textContent = attached + (attached === 1
+                        ? ' collaborateur est encore rattaché à ce département. Réaffectez-le avant de supprimer.'
+                        : ' collaborateurs sont encore rattachés à ce département. Réaffectez-les avant de supprimer.');
+                }
+
+                deleteTeamLink.href = employeesUrl + '?department=' + encodeURIComponent(data.slug);
+                deleteTeamLink.classList.toggle('hidden', attached === 0);
+                deleteDialog.showModal();
+            });
+        });
+
+        [formDialog, deleteDialog].forEach(function (dialog) {
+            if (!dialog) {
+                return;
+            }
+
+            dialog.addEventListener('click', function (event) {
+                if (event.target === dialog) {
+                    dialog.close();
+                }
+            });
+        });
+
+        @if ($errors->any() && in_array(old('_form'), ['create', 'edit'], true))
+            openFormDialog();
+        @endif
+    })();
+</script>
 </x-admin-shell>

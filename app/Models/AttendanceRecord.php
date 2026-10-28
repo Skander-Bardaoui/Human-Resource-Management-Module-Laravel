@@ -19,11 +19,25 @@ class AttendanceRecord extends Model
     ];
 
     public const MODES = [
-        'biometric' => 'Biométrie Lac 2',
-        'rfid' => 'Badge RFID RDC',
-        'web' => 'Portail Web SSO',
-        'manual' => 'Saisie Manuelle RH',
+        'biometric' => 'Terminal biométrique',
+        'rfid' => 'Badge RFID',
+        'web' => 'Portail web',
+        'manual' => 'Saisie manuelle RH',
         'none' => 'Aucun enregistrement',
+    ];
+
+    public const DIRECTIONS = [
+        'in' => 'Entrée / Arrivée',
+        'out' => 'Sortie / Départ',
+        'pause_in' => 'Début de pause',
+        'pause_out' => 'Fin de pause',
+    ];
+
+    public const MOTIFS = [
+        'forgot' => 'Oubli de badge',
+        'failure' => 'Panne du terminal',
+        'mission' => 'Mission externe',
+        'other' => 'Autre justification',
     ];
 
     protected $fillable = [
@@ -91,7 +105,7 @@ class AttendanceRecord extends Model
             return 0;
         }
 
-        return max(0, $in - (8 * 60 + 30));
+        return max(0, $in - self::scheduleStartMinutes());
     }
 
     public function workedLabel(): string
@@ -175,17 +189,97 @@ class AttendanceRecord extends Model
 
     public function isLateArrival(): bool
     {
-        return $this->check_in !== null && $this->lateMinutes() > 15;
+        return $this->check_in !== null
+            && ! in_array($this->status, ['absent', 'leave'], true)
+            && $this->lateMinutes() > self::lateToleranceMinutes();
     }
 
     public function hasMissingCheckout(): bool
     {
-        return $this->check_in !== null && $this->check_out === null && $this->status !== 'absent' && $this->status !== 'leave';
+        return $this->check_in !== null
+            && $this->check_out === null
+            && ! in_array($this->status, ['absent', 'leave'], true)
+            && $this->work_date !== null
+            && $this->work_date->toDateString() < self::currentDate()->toDateString();
     }
 
     public function hasEarlyExit(): bool
     {
-        return $this->check_in !== null && $this->check_out !== null && $this->workedMinutes() < 450;
+        return $this->check_in !== null
+            && $this->check_out !== null
+            && ! in_array($this->status, ['absent', 'leave'], true)
+            && $this->workedMinutes() < self::minimumFullDayMinutes();
+    }
+
+    public function overtimeMinutes(): int
+    {
+        return max(0, $this->workedMinutes() - self::overtimeThresholdMinutes());
+    }
+
+    public function hasAnomalySignal(): bool
+    {
+        return $this->hasMissingCheckout() || $this->hasEarlyExit() || $this->isLateArrival();
+    }
+
+    public function isAnomaly(): bool
+    {
+        return ! $this->anomaly_ignored && $this->hasAnomalySignal();
+    }
+
+    public static function currentDate(): Carbon
+    {
+        return Carbon::now(config('attendance.timezone', 'Africa/Tunis'))->startOfDay();
+    }
+
+    public static function scheduleStartMinutes(): int
+    {
+        return self::scheduleMinutes('start', 8 * 60 + 30);
+    }
+
+    public static function scheduleEndTime(): string
+    {
+        $value = (string) config('attendance.schedule.end', '17:30');
+
+        return preg_match('/^\d{2}:\d{2}:\d{2}$/', $value) === 1
+            ? $value
+            : substr($value, 0, 5).':00';
+    }
+
+    public static function lateToleranceMinutes(): int
+    {
+        return max(0, (int) config('attendance.late_tolerance_minutes', 15));
+    }
+
+    public static function minimumFullDayMinutes(): int
+    {
+        return max(1, (int) config('attendance.minimum_full_day_minutes', 450));
+    }
+
+    public static function overtimeThresholdMinutes(): int
+    {
+        return max(1, (int) config('attendance.overtime_threshold_minutes', 480));
+    }
+
+    public static function timeToMinutes(?string $time): ?int
+    {
+        if (! $time) {
+            return null;
+        }
+
+        [$hours, $minutes] = array_pad(explode(':', $time), 2, 0);
+
+        return (int) $hours * 60 + (int) $minutes;
+    }
+
+    private static function scheduleMinutes(string $key, int $fallback): int
+    {
+        $value = (string) config('attendance.schedule.'.$key, '');
+
+        if (preg_match('/^(\d{1,2}):(\d{2})/', $value, $matches) !== 1) {
+            return $fallback;
+        }
+
+        return (int) $matches[1] * 60 + (int) $matches[2];
     }
 
     private function shortTime(?string $time): ?string
@@ -195,12 +289,6 @@ class AttendanceRecord extends Model
 
     private function minutesOf(?string $time): ?int
     {
-        if (! $time) {
-            return null;
-        }
-
-        [$hours, $minutes] = array_pad(explode(':', $time), 2, 0);
-
-        return (int) $hours * 60 + (int) $minutes;
+        return self::timeToMinutes($time);
     }
 }
