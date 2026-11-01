@@ -103,14 +103,17 @@ Route::middleware(['token.auth', 'verified', 'admin'])->prefix('admin')->name('a
     Route::post('/departments', [AdminDepartmentController::class, 'store'])->name('departments.store');
     Route::get('/departments/export', [AdminDepartmentController::class, 'export'])->name('departments.export');
     Route::put('/departments/{department}', [AdminDepartmentController::class, 'update'])->name('departments.update');
+    Route::delete('/departments/{department}', [AdminDepartmentController::class, 'destroy'])->name('departments.destroy');
 
     Route::get('/payroll', [AdminPayrollController::class, 'index'])->name('payroll');
+    Route::post('/payroll/generate', [AdminPayrollController::class, 'generate'])->name('payroll.generate');
     Route::post('/payroll/close', [AdminPayrollController::class, 'close'])->name('payroll.close');
     Route::get('/payroll/export/journal', [AdminPayrollController::class, 'exportJournal'])->name('payroll.export.journal');
     Route::get('/payroll/export/cnss', [AdminPayrollController::class, 'exportCnss'])->name('payroll.export.cnss');
     Route::get('/payroll/export/bank', [AdminPayrollController::class, 'exportBank'])->name('payroll.export.bank');
     Route::get('/payroll/{payslip}/payslip', [AdminPayrollController::class, 'downloadPayslip'])->name('payroll.payslip');
     Route::get('/recruitment', [RecruitmentController::class, 'index'])->name('recruitment');
+    Route::get('/offers', [RecruitmentController::class, 'offers'])->name('offers');
     Route::post('/recruitment/candidates', [RecruitmentController::class, 'storeCandidate'])->name('recruitment.candidates.store');
     Route::put('/recruitment/candidates/{candidate}', [RecruitmentController::class, 'updateCandidate'])->name('recruitment.candidates.update');
     Route::delete('/recruitment/candidates/{candidate}', [RecruitmentController::class, 'destroyCandidate'])->name('recruitment.candidates.destroy');

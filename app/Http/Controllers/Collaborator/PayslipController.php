@@ -75,8 +75,8 @@ class PayslipController extends CollaboratorController
             'hasOpenAdvance' => $hasOpenAdvance,
             'currentPeriodLabel' => ucfirst($now->locale('fr')->translatedFormat('F Y')),
             'advances' => $advances,
-            'fiscalParts' => PayrollCalculator::familyParts($employee),
-            'cnssRate' => PayrollCalculator::EMPLOYEE_CNSS_RATE,
+            'fiscalParts' => PayrollCalculator::familyHalfParts($employee) / 2,
+            'cnssRate' => ((int) config('payroll.cnss.employee_rate_bp', 918)) / 10000,
         ]);
     }
 

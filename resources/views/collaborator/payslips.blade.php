@@ -17,7 +17,9 @@
         ?? ($selected?->status === 'paid' ? 'Versé' : 'En attente de versement');
 
     $canRequestAdvance = ! $hasOpenAdvance && $latest !== null && $maxAdvance >= $minAdvance;
-    $money = fn ($value): string => number_format((float) $value, 3, ',', ' ');
+    $money = fn ($value): string => $value instanceof \App\Support\Money
+        ? $value->format(3)
+        : number_format((float) $value, 3, ',', ' ');
     $failedForm = old('form');
 @endphp
 

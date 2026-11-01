@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -46,5 +47,25 @@ class Department extends Model
     public function employees()
     {
         return $this->hasMany(Employee::class, 'department', 'slug');
+    }
+
+    public function activeEmployees()
+    {
+        return $this->employees()->where('status', '!=', 'inactif');
+    }
+
+    public function scopeSearch(Builder $query, string $term): Builder
+    {
+        $pattern = '%'.$term.'%';
+
+        return $query->where(function (Builder $query) use ($pattern) {
+            $query->where('name', 'like', $pattern)
+                ->orWhere('description', 'like', $pattern)
+                ->orWhere('code', 'like', $pattern)
+                ->orWhereHas('manager', function (Builder $query) use ($pattern) {
+                    $query->where('name', 'like', $pattern)
+                        ->orWhere('email', 'like', $pattern);
+                });
+        });
     }
 }

@@ -1,21 +1,28 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
 use App\Models\Payslip;
+use Carbon\Carbon;
 
 class PayslipPdf
 {
     public static function render(Payslip $payslip, string $periodLabel): string
     {
         $employee = $payslip->employee;
+        $company = (array) config('payroll.company', []);
+        $version = (string) config('payroll.version', '—');
+        $net = $payslip->netAmount();
         $ops = [];
         $y = 800;
 
-        $ops[] = self::text(50, $y, 17, 'F2', 'CARTHAGE TECH SOLUTIONS SARL');
-        $ops[] = self::text(50, $y - 17, 9, 'F1', 'Tunis Lac II - MF 182934 A/M/000 - CNSS Employeur 29481900-12');
+        $ops[] = self::text(50, $y, 17, 'F2', (string) ($company['name'] ?? '—'));
+        $ops[] = self::text(50, $y - 17, 9, 'F1', (string) ($company['address'] ?? '—')
+            .' - CNSS Employeur '.($company['cnss_number'] ?? '—'));
         $ops[] = self::text(50, $y - 34, 12, 'F2', 'BULLETIN DE PAIE - '.$periodLabel);
-        $ops[] = self::text(50, $y - 50, 9, 'F1', 'Document officiel genere par HRM Pro - Conforme au Code du Travail Tunisien');
+        $ops[] = self::text(50, $y - 50, 9, 'F1', 'Paramétrage de paie version '.$version);
         $ops[] = self::line(50, $y - 62, 545);
 
         $y = 710;
@@ -38,13 +45,13 @@ class PayslipPdf
         $y -= 38;
 
         $rows = [
-            ['Salaire de base brut', number_format((float) $payslip->base_salary, 3, '.', ' ')],
-            ['Prime de rendement et technicite', number_format((float) $payslip->prime, 3, '.', ' ')],
-            ['Indemnite de transport legale', number_format((float) $payslip->transport_allowance, 3, '.', ' ')],
-            ['Cotisation CNSS salariale (9.18%)', '-'.number_format((float) $payslip->cnss, 3, '.', ' ')],
-            ['Base imposable soumise a l IRPP', number_format((float) $payslip->taxable_base, 3, '.', ' ')],
-            ['Retenue IRPP - bareme 2025', '-'.number_format((float) $payslip->irpp, 3, '.', ' ')],
-            ['Contribution sociale de solidarite (1%)', '-'.number_format((float) $payslip->css, 3, '.', ' ')],
+            ['Salaire de base', $payslip->baseSalary()->format(3)],
+            ['Prime', $payslip->primeAmount()->format(3)],
+            ['Indemnite de transport', $payslip->transportAllowance()->format(3)],
+            ['Cotisation CNSS salariale ('.PayrollCalculator::rateLabel((int) config('payroll.cnss.employee_rate_bp', 918)).')', '-'.$payslip->cnssAmount()->format(3)],
+            ['Base imposable IRPP', $payslip->taxableBase()->format(3)],
+            ['Retenue IRPP - bareme '.$version, '-'.$payslip->irppAmount()->format(3)],
+            ['Contribution sociale ('.PayrollCalculator::rateLabel((int) config('payroll.css_rate_bp', 100)).')', '-'.$payslip->cssAmount()->format(3)],
         ];
 
         foreach ($rows as $row) {
@@ -56,20 +63,19 @@ class PayslipPdf
         $ops[] = self::line(50, $y - 4, 545);
         $y -= 34;
         $ops[] = self::text(50, $y, 13, 'F2', 'NET A PAYER PAR VIREMENT BANCAIRE');
-        $ops[] = self::text(430, $y, 14, 'F2', number_format((float) $payslip->net, 3, '.', ' ').' TND');
+        $ops[] = self::text(430, $y, 14, 'F2', $net->format(3).' TND');
 
         $y -= 34;
         $ops[] = self::text(50, $y, 9, 'F1', 'Arrete le present bulletin a la somme de :');
         $y -= 16;
-        $ops[] = self::text(50, $y, 10, 'F2', FrenchNumber::amountInWords((float) $payslip->net));
+        $ops[] = self::text(50, $y, 10, 'F2', FrenchNumber::amountInWords((float) $net->toDecimalString()));
 
         $y -= 60;
-        $ops[] = self::text(50, $y, 8, 'F1', 'Signature electronique employeur : HRM Pro - Carthage Tech Solutions');
-        $ops[] = self::text(50, $y - 14, 8, 'F1', 'Verification : '.strtoupper(substr(hash('sha256', $payslip->id.'|'.$payslip->period.'|'.$payslip->net), 0, 32)));
-        $ops[] = self::text(330, $y - 40, 9, 'F2', 'SIGNE ELECTRONIQUEMENT');
-        $ops[] = self::text(330, $y - 54, 8, 'F1', 'Horodatage : '.now()->format('d/m/Y H:i:s'));
+        $ops[] = self::text(50, $y, 8, 'F1', 'Document genere par le module Paie - version de parametrage '.$version);
+        $ops[] = self::text(50, $y - 14, 8, 'F1', 'Empreinte du bulletin : '.strtoupper(substr(hash('sha256', $payslip->id.'|'.$payslip->period.'|'.$net->toDecimalString()), 0, 32)));
+        $ops[] = self::text(330, $y - 40, 8, 'F1', 'Horodatage : '.Carbon::now((string) config('payroll.timezone', 'Africa/Tunis'))->format('d/m/Y H:i:s'));
         $ops[] = self::line(50, 70, 545);
-        $ops[] = self::text(50, 56, 8, 'F1', 'Document genere automatiquement - Aucune signature manuscrite requise.');
+        $ops[] = self::text(50, 56, 8, 'F1', 'Les montants proviennent du bulletin enregistre en base de donnees.');
 
         $content = implode("\n", $ops);
         $length = strlen($content);

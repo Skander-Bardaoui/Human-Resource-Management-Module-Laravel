@@ -17,19 +17,27 @@ class PayslipGenerator
 
         $amounts = PayrollCalculator::forEmployee(
             $employee,
-            SalaryDefaults::baseFor($employee),
-            SalaryDefaults::primeFor($employee)
+            Money::fromDatabase(SalaryDefaults::baseFor($employee)),
+            Money::fromDatabase(SalaryDefaults::primeFor($employee))
         );
 
         [$bank, $rib] = SalaryDefaults::bankDetails($employee->bank_account);
 
-        return Payslip::create(array_merge($amounts, [
+        return Payslip::create([
             'employee_id' => $employee->id,
             'period' => $period,
+            'base_salary' => $amounts['base_salary']->toDecimalString(),
+            'prime' => $amounts['prime']->toDecimalString(),
+            'transport_allowance' => $amounts['transport_allowance']->toDecimalString(),
+            'cnss' => $amounts['cnss']->toDecimalString(),
+            'taxable_base' => $amounts['taxable_base']->toDecimalString(),
+            'irpp' => $amounts['irpp']->toDecimalString(),
+            'css' => $amounts['css']->toDecimalString(),
+            'net' => $amounts['net']->toDecimalString(),
             'status' => 'ready',
             'bank' => $bank,
             'rib' => $rib,
-        ]));
+        ]);
     }
 
     public static function ensureForPeriod(string $period): int

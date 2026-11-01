@@ -9,7 +9,7 @@
 </head>
 <body style="margin:0; padding:0; background-color:#F4F7FB; font-family:Arial, Helvetica, sans-serif; -webkit-font-smoothing:antialiased;">
 
-<span style="display:none; max-height:0; overflow:hidden; opacity:0; mso-hide:all;">Votre embauche chez Carthage Tech Solutions est confirmée. Voici les prochaines étapes pour votre intégration.</span>
+<span style="display:none; max-height:0; overflow:hidden; opacity:0; mso-hide:all;">Votre embauche chez Carthage Tech Solutions est confirmée. Voici vos identifiants et les prochaines étapes de votre intégration.</span>
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F4F7FB; padding:40px 16px;">
 <tr>
@@ -49,10 +49,10 @@
                     </td>
                 </tr>
             </table>
-            <h1 style="margin:22px 0 0; color:#131B2E; font-size:27px; line-height:1.25; font-weight:bold;">Félicitations, {{ $candidate->name }}&nbsp;!</h1>
+            <h1 style="margin:22px 0 0; color:#131B2E; font-size:27px; line-height:1.25; font-weight:bold;">Félicitations, {{ $employee->name }}&nbsp;!</h1>
             <p style="margin:14px 0 0; color:#464555; font-size:15px; line-height:1.7;">
                 Nous avons le plaisir de vous annoncer que votre candidature au poste de
-                <strong style="color:#131B2E;">{{ $candidate->position }}</strong> a été retenue.
+                <strong style="color:#131B2E;">{{ $employee->position }}</strong> a été retenue.
                 Bienvenue dans l'équipe&nbsp;!
             </p>
         </td>
@@ -64,21 +64,50 @@
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #DCE7F5; border-radius:12px; overflow:hidden;">
                 <tr>
                     <td width="42%" style="padding:14px 18px; background-color:#F7FAFD; border-bottom:1px solid #DCE7F5; color:#77768A; font-size:12px; letter-spacing:0.6px; text-transform:uppercase;">Poste</td>
-                    <td style="padding:14px 18px; border-bottom:1px solid #DCE7F5; color:#131B2E; font-size:14px; font-weight:bold;">{{ $candidate->position }}</td>
+                    <td style="padding:14px 18px; border-bottom:1px solid #DCE7F5; color:#131B2E; font-size:14px; font-weight:bold;">{{ $employee->position }}</td>
                 </tr>
-                @if ($candidate->contract_type_target)
+                @if ($employee->contract_type)
                 <tr>
                     <td width="42%" style="padding:14px 18px; background-color:#F7FAFD; border-bottom:1px solid #DCE7F5; color:#77768A; font-size:12px; letter-spacing:0.6px; text-transform:uppercase;">Type de contrat</td>
-                    <td style="padding:14px 18px; border-bottom:1px solid #DCE7F5; color:#131B2E; font-size:14px; font-weight:bold;">{{ $candidate->contract_type_target }}</td>
+                    <td style="padding:14px 18px; border-bottom:1px solid #DCE7F5; color:#131B2E; font-size:14px; font-weight:bold;">{{ $employee->contract_type }}</td>
                 </tr>
                 @endif
-                @if ($candidate->hired_at)
+                @if ($employee->hire_date)
                 <tr>
                     <td width="42%" style="padding:14px 18px; background-color:#F7FAFD; color:#77768A; font-size:12px; letter-spacing:0.6px; text-transform:uppercase;">Date d'intégration</td>
-                    <td style="padding:14px 18px; color:#131B2E; font-size:14px; font-weight:bold;">{{ $candidate->hired_at->format('d/m/Y') }}</td>
+                    <td style="padding:14px 18px; color:#131B2E; font-size:14px; font-weight:bold;">{{ $employee->hire_date->format('d/m/Y') }}</td>
                 </tr>
                 @endif
             </table>
+        </td>
+    </tr>
+
+    <!-- Access -->
+    <tr>
+        <td style="padding:24px 32px 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #DCE7F5; border-radius:12px; overflow:hidden;">
+                <tr>
+                    <td colspan="2" style="padding:14px 18px; background-color:#EDF3FB; border-bottom:1px solid #DCE7F5; color:#0F3D6E; font-size:13px; font-weight:bold; letter-spacing:0.4px;">Votre accès à la plateforme</td>
+                </tr>
+                <tr>
+                    <td width="42%" style="padding:14px 18px; background-color:#F7FAFD; border-bottom:1px solid #DCE7F5; color:#77768A; font-size:12px; letter-spacing:0.6px; text-transform:uppercase;">Adresse de votre espace</td>
+                    <td style="padding:14px 18px; border-bottom:1px solid #DCE7F5; font-size:14px;">
+                        <a href="{{ route('login') }}" style="color:#0F3D6E; text-decoration:none; font-weight:bold;">{{ route('login') }}</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td width="42%" style="padding:14px 18px; background-color:#F7FAFD; border-bottom:1px solid #DCE7F5; color:#77768A; font-size:12px; letter-spacing:0.6px; text-transform:uppercase;">Email / identifiant</td>
+                    <td style="padding:14px 18px; border-bottom:1px solid #DCE7F5; color:#131B2E; font-size:14px; font-weight:bold;">{{ $employee->email }}</td>
+                </tr>
+                <tr>
+                    <td width="42%" style="padding:14px 18px; background-color:#F7FAFD; color:#77768A; font-size:12px; letter-spacing:0.6px; text-transform:uppercase;">Mot de passe</td>
+                    <td style="padding:14px 18px; color:#131B2E; font-size:14px; font-weight:bold; font-family:Consolas, Monaco, monospace; letter-spacing:0.5px;">{{ $password }}</td>
+                </tr>
+            </table>
+            <p style="margin:14px 0 0; color:#77768A; font-size:13px; line-height:1.6;">
+                Connectez-vous avec ces identifiants pour accéder à votre espace collaborateur (congés, fiches de paie, pointage et documents).
+                Nous vous recommandons de modifier ce mot de passe après votre première connexion.
+            </p>
         </td>
     </tr>
 
@@ -123,7 +152,7 @@
             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                     <td align="center" style="background-color:#0F3D6E; border-radius:10px;">
-                        <a href="mailto:{{ config('mail.from.address') }}" style="display:inline-block; padding:14px 26px; color:#FFFFFF; font-size:14px; font-weight:bold; text-decoration:none; letter-spacing:0.2px;">Contacter l'équipe RH</a>
+                        <a href="{{ route('login') }}" style="display:inline-block; padding:14px 26px; color:#FFFFFF; font-size:14px; font-weight:bold; text-decoration:none; letter-spacing:0.2px;">Se connecter à mon espace</a>
                     </td>
                 </tr>
             </table>
