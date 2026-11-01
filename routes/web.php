@@ -5,6 +5,12 @@ use App\Http\Controllers\Admin\LeaveController as AdminLeaveController;
 use App\Http\Controllers\Admin\AttendanceController as AdminAttendanceController;
 use App\Http\Controllers\Admin\DepartmentController as AdminDepartmentController;
 use App\Http\Controllers\Admin\PayrollController as AdminPayrollController;
+use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
+use App\Http\Controllers\Collaborator\AttendanceController as CollaboratorAttendanceController;
+use App\Http\Controllers\Collaborator\DashboardController as CollaboratorDashboardController;
+use App\Http\Controllers\Collaborator\DocumentController as CollaboratorDocumentController;
+use App\Http\Controllers\Collaborator\LeaveController as CollaboratorLeaveController;
+use App\Http\Controllers\Collaborator\PayslipController as CollaboratorPayslipController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\EmployeeController;
@@ -38,15 +44,32 @@ Route::get('/', function () {
     return view('landing');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['token.auth', 'verified'])->name('dashboard');
+Route::middleware(['token.auth', 'verified', 'collaborator'])->group(function () {
+    Route::get('/dashboard', [CollaboratorDashboardController::class, 'index'])->name('dashboard');
 
-Route::middleware(['token.auth', 'verified'])->group(function () {
-    Route::view('/mes-conges', 'collaborator.conges')->name('collaborator.conges');
-    Route::view('/mes-fiches-de-paie', 'collaborator.payslips')->name('collaborator.payslips');
-    Route::view('/mon-pointage', 'collaborator.attendance')->name('collaborator.attendance');
-    Route::view('/mes-documents', 'collaborator.documents')->name('collaborator.documents');
+    Route::get('/mes-conges', [CollaboratorLeaveController::class, 'index'])->name('collaborator.conges');
+    Route::post('/mes-conges', [CollaboratorLeaveController::class, 'store'])->name('collaborator.conges.store');
+    Route::patch('/mes-conges/{leave}/annuler', [CollaboratorLeaveController::class, 'cancel'])->name('collaborator.conges.cancel');
+    Route::get('/mes-conges/{leave}/justificatif', [CollaboratorLeaveController::class, 'attachment'])->name('collaborator.conges.attachment');
+
+    Route::get('/mon-pointage', [CollaboratorAttendanceController::class, 'index'])->name('collaborator.attendance');
+    Route::post('/mon-pointage/arrivee', [CollaboratorAttendanceController::class, 'punchIn'])->name('collaborator.attendance.punch-in');
+    Route::post('/mon-pointage/depart', [CollaboratorAttendanceController::class, 'punchOut'])->name('collaborator.attendance.punch-out');
+    Route::post('/mon-pointage/pause/debut', [CollaboratorAttendanceController::class, 'pauseStart'])->name('collaborator.attendance.pause-start');
+    Route::post('/mon-pointage/pause/fin', [CollaboratorAttendanceController::class, 'pauseEnd'])->name('collaborator.attendance.pause-end');
+    Route::post('/mon-pointage/teletravail', [CollaboratorAttendanceController::class, 'telework'])->name('collaborator.attendance.telework');
+    Route::post('/mon-pointage/regularisation', [CollaboratorAttendanceController::class, 'regularize'])->name('collaborator.attendance.regularize');
+    Route::get('/mon-pointage/export', [CollaboratorAttendanceController::class, 'export'])->name('collaborator.attendance.export');
+
+    Route::get('/mes-fiches-de-paie', [CollaboratorPayslipController::class, 'index'])->name('collaborator.payslips');
+    Route::get('/mes-fiches-de-paie/{payslip}/pdf', [CollaboratorPayslipController::class, 'download'])->name('collaborator.payslips.download');
+    Route::post('/mes-fiches-de-paie/acompte', [CollaboratorPayslipController::class, 'advanceStore'])->name('collaborator.payslips.advance');
+
+    Route::get('/mes-documents', [CollaboratorDocumentController::class, 'index'])->name('collaborator.documents');
+    Route::get('/mes-documents/{document}/telecharger', [CollaboratorDocumentController::class, 'download'])->name('collaborator.documents.download');
+    Route::post('/mes-documents/demande', [CollaboratorDocumentController::class, 'requestStore'])->name('collaborator.documents.request');
+    Route::post('/mes-documents/attestation', [CollaboratorDocumentController::class, 'attestation'])->name('collaborator.documents.attestation');
+    Route::patch('/mes-documents/profil', [CollaboratorDocumentController::class, 'updateProfile'])->name('collaborator.documents.profile');
 });
 
 Route::middleware(['token.auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
@@ -58,6 +81,7 @@ Route::middleware(['token.auth', 'verified', 'admin'])->prefix('admin')->name('a
     Route::delete('/employees/bulk', [AdminEmployeeController::class, 'bulkDestroy'])->name('employees.bulkDestroy');
     Route::get('/employees/{employee}/cin', [AdminEmployeeController::class, 'downloadCin'])->name('employees.cin');
     Route::put('/employees/{employee}', [AdminEmployeeController::class, 'update'])->name('employees.update');
+    Route::patch('/employees/{employee}/access', [AdminEmployeeController::class, 'toggleAccess'])->name('employees.access');
     Route::delete('/employees/{employee}', [AdminEmployeeController::class, 'destroy'])->name('employees.destroy');
 
     Route::get('/leaves', [AdminLeaveController::class, 'index'])->name('leaves');
@@ -66,6 +90,7 @@ Route::middleware(['token.auth', 'verified', 'admin'])->prefix('admin')->name('a
     Route::get('/leaves/{leave}/attachment', [AdminLeaveController::class, 'downloadAttachment'])->name('leaves.attachment');
     Route::patch('/leaves/{leave}/approve', [AdminLeaveController::class, 'approve'])->name('leaves.approve');
     Route::patch('/leaves/{leave}/reject', [AdminLeaveController::class, 'reject'])->name('leaves.reject');
+    Route::patch('/leaves/{leave}/stop', [AdminLeaveController::class, 'stop'])->name('leaves.stop');
     Route::get('/attendance', [AdminAttendanceController::class, 'index'])->name('attendance');
     Route::post('/attendance/punch', [AdminAttendanceController::class, 'punch'])->name('attendance.punch');
     Route::get('/attendance/export', [AdminAttendanceController::class, 'export'])->name('attendance.export');
@@ -113,6 +138,7 @@ Route::middleware(['token.auth', 'verified', 'admin'])->prefix('admin')->name('a
     Route::delete('/reports/schedules/{schedule}', [ReportsController::class, 'destroySchedule'])->name('reports.schedules.destroy');
     Route::post('/reports/schedules/{schedule}/send', [ReportsController::class, 'sendNow'])->name('reports.schedules.send');
     Route::view('/settings', 'admin.settings')->name('settings');
+    Route::get('/profile', [AdminProfileController::class, 'index'])->name('profile');
 });
 
 Route::middleware('token.auth')->group(function () {

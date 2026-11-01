@@ -1,689 +1,670 @@
 @php
-    $user = auth()->user();
-    $matricule = 'MAT-' . str_pad($user->id, 4, '0', STR_PAD_LEFT);
-    $nameParts = preg_split('/\s+/', trim($user->name));
-    $initials = strtoupper(substr($nameParts[0] ?? '', 0, 1) . substr($nameParts[1] ?? '', 0, 1));
-    $fileSlug = str_replace(' ', '_', $user->name);
+    $categoryIcons = [
+        'contrats' => 'contract',
+        'identite' => 'badge',
+        'paie' => 'receipt_long',
+        'diplomes' => 'workspace_premium',
+        'attestations' => 'verified',
+    ];
+    $categoryTones = [
+        'contrats' => 'bg-primary-fixed text-primary',
+        'identite' => 'bg-surface-container-high text-on-surface',
+        'paie' => 'bg-secondary-container text-on-secondary-fixed',
+        'diplomes' => 'bg-primary-fixed-dim text-primary',
+        'attestations' => 'bg-secondary-fixed text-on-secondary-fixed',
+    ];
+    $sizeLabel = function (int $bytes): string {
+        if ($bytes >= 1024 * 1024) {
+            return number_format($bytes / 1024 / 1024, 1, ',', ' ').' Mo';
+        }
+        if ($bytes >= 1024) {
+            return number_format($bytes / 1024, 0, ',', ' ').' Ko';
+        }
+
+        return $bytes.' o';
+    };
+    $familyLabels = [
+        'celibataire' => 'Célibataire',
+        'marie' => 'Marié(e)',
+        'divorce' => 'Divorcé(e)',
+        'veuf' => 'Veuf(ve)',
+    ];
+    $familyLabel = $familyLabels[$employee->family_status] ?? ($employee->family_status ?: 'Non renseigné');
+    $failedForm = old('form');
 @endphp
 
 <x-collaborator-shell active="documents" title="Mes Documents & Profil">
-<div class="flex flex-col w-full">
-<div class="px-margin py-space-xl flex flex-col gap-space-xl max-w-[1536px] mx-auto w-full">
-<!-- Header Section with Distinct Administrative Polish -->
-<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-lg">
-<div class="flex flex-col gap-space-xs">
-<div class="flex items-center gap-space-sm">
-<span class="px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-fixed text-label-sm font-label-sm uppercase tracking-wider font-semibold">Portail e-RH Certifié</span>
-<span class="w-1.5 h-1.5 rounded-full bg-tertiary-container"></span>
-<span class="text-label-sm font-label-sm text-on-surface-variant flex items-center gap-1">
-<span class="material-symbols-outlined text-[14px] text-tertiary">verified</span> Coffre-Fort Chiffré AES-256
-          </span>
-</div>
-<h1 class="font-display-lg text-display-lg text-on-surface tracking-tight">Mes Documents &amp; Coffre-Fort Numérique</h1>
-<p class="font-body-md text-body-md text-on-surface-variant max-w-3xl">
-          Accédez à vos documents contractuels, attestations administratives certifiées et gérez votre dossier collaborateur en conformité avec la réglementation tunisienne.
-        </p>
-</div>
-<div class="flex items-center gap-space-sm shrink-0">
-<button class="h-9.5 px-space-lg rounded-xl bg-surface-container text-on-surface font-label-lg text-label-lg flex items-center gap-space-xs hover:bg-surface-container-high transition-all shadow-sm" onclick="openUpdateModal()" type="button">
-<span class="material-symbols-outlined text-[18px] text-on-surface-variant">badge</span>
-<span>Mettre à jour mes infos</span>
-</button>
-<button class="h-9.5 px-space-lg rounded-xl bg-primary text-on-primary font-label-lg text-label-lg flex items-center gap-space-xs hover:bg-primary-container shadow-sm transition-all" onclick="scrollToFastRequest()" type="button">
-<span class="material-symbols-outlined text-[18px]">add_circle</span>
-<span>Demander un Document RH</span>
-</button>
-</div>
-</div>
-<!-- Identity Overview Card: Asymmetric Split Bento -->
-<div class="w-full rounded-xl bg-surface-container-lowest p-space-xl shadow-sm flex flex-col xl:flex-row gap-space-xl relative overflow-hidden">
-<div class="absolute -right-20 -bottom-20 w-80 h-80 rounded-full bg-primary/5 pointer-events-none blur-3xl"></div>
-<!-- Employee Profile Core -->
-<div class="flex items-start gap-space-lg xl:w-4/12 shrink-0">
-<div class="relative">
-<div class="w-20 h-20 rounded-xl shadow-sm bg-primary flex items-center justify-center">
-<span class="text-on-primary text-headline-lg font-bold">{{ $initials ?: 'U' }}</span>
-</div>
-<span class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-tertiary-container text-on-tertiary flex items-center justify-center shadow-sm" title="Statut CDI Vérifié">
-<span class="material-symbols-outlined text-[14px]">check</span>
-</span>
-</div>
-<div class="flex flex-col min-w-0">
-<div class="flex items-center gap-space-xs mb-0.5">
-<h2 class="font-headline-md text-headline-md text-on-surface truncate">{{ $user->name }}</h2>
-</div>
-<span class="font-label-lg text-label-lg text-primary font-semibold">Lead Fullstack Engineer</span>
-<span class="font-body-sm text-body-sm text-on-surface-variant">Pôle Ingénierie logicielle &amp; Architecture</span>
-<div class="flex items-center gap-space-xs mt-2">
-<span class="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface font-label-sm text-label-sm">Matricule: <span class="font-numeric-md text-numeric-md font-semibold text-on-surface">{{ $matricule }}</span></span>
-<span class="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-fixed text-label-sm font-label-sm font-medium">CDI Cadre</span>
-</div>
-</div>
-</div>
-<!-- Regulatory & Legal Identifiers (Tunisia Compliance) -->
-<div class="grid grid-cols-2 sm:grid-cols-2 gap-space-md xl:w-5/12 bg-surface-container-low p-space-lg rounded-xl">
-<div class="flex flex-col">
-<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">C.I.N Nationale</span>
-<div class="flex items-baseline gap-1 mt-0.5">
-<span class="font-numeric-md text-numeric-md font-bold text-on-surface">09845211</span>
-<span class="font-label-sm text-label-sm text-on-surface-variant">(Tunis)</span>
-</div>
-<span class="font-label-sm text-label-sm text-tertiary-container font-medium mt-1 flex items-center gap-1">
-<span class="material-symbols-outlined text-[13px]">verified_user</span> Valide jusqu'en 2030
-          </span>
-</div>
-<div class="flex flex-col">
-<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Immatriculation CNSS</span>
-<span class="font-numeric-md text-numeric-md font-bold text-on-surface mt-0.5">09482110-12</span>
-<span class="font-label-sm text-label-sm text-on-surface-variant mt-1">Caisse Tunis / Régime Général</span>
-</div>
-<div class="flex flex-col">
-<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Date d'Embauche</span>
-<span class="font-numeric-md text-numeric-md font-semibold text-on-surface mt-0.5">15 Janvier 2020</span>
-<span class="font-label-sm text-label-sm text-on-surface-variant mt-1">Ancienneté: 5 ans 2 mois</span>
-</div>
-<div class="flex flex-col">
-<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Convention Collective</span>
-<span class="font-label-md text-label-md font-semibold text-on-surface mt-0.5">Bureaux d'Études &amp; Informatique</span>
-<span class="font-label-sm text-label-sm text-on-surface-variant mt-1">Échelon III - Position 2</span>
-</div>
-</div>
-<!-- Emergency & Private Contact -->
-<div class="flex flex-col justify-between gap-space-sm xl:w-3/12 bg-surface-container-high/40 p-space-lg rounded-xl">
-<div class="flex flex-col gap-1">
-<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider flex items-center gap-1">
-<span class="material-symbols-outlined text-[15px] text-primary">contacts</span> Coordonnées Directes
-          </span>
-<span class="font-body-sm text-body-sm text-on-surface truncate mt-1">{{ $user->email }}</span>
-<span class="font-numeric-md text-numeric-md font-medium text-on-surface">+216 98 412 890</span>
-</div>
-<div class="flex flex-col gap-0.5 pt-2">
-<span class="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1">
-<span class="material-symbols-outlined text-[14px] text-error">emergency</span> Contact d'Urgence
-          </span>
-<span class="font-body-sm text-body-sm font-semibold text-on-surface">Leila Ben Salem <span class="font-normal text-on-surface-variant text-[12px]">(Épouse)</span></span>
-<span class="font-numeric-md text-numeric-md text-on-surface-variant">+216 22 555 120</span>
-</div>
-</div>
-</div>
-<!-- Main Workspace Section: Digital Vault Documents & Filter Bar -->
-<div class="flex flex-col gap-space-lg">
-<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-md">
-<!-- Interactive Category Switcher -->
-<div class="flex items-center gap-1 p-1 bg-surface-container-low rounded-xl overflow-x-auto max-w-full">
-<button class="vault-tab-btn px-space-md py-space-xs rounded-lg bg-surface-container-lowest text-primary font-label-md text-label-md shadow-sm font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap" onclick="filterDocs('all', this)" type="button">
-<span>Tous les documents</span>
-<span class="px-1.5 py-0.2 rounded-full bg-secondary-container text-on-secondary-fixed text-label-sm">12</span>
-</button>
-<button class="vault-tab-btn px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-md text-label-md hover:text-on-surface transition-all flex items-center gap-1.5 whitespace-nowrap" onclick="filterDocs('contrats', this)" type="button">
-<span>Contrats &amp; Avenants</span>
-<span class="px-1.5 py-0.2 rounded-full bg-surface-container-high text-on-surface-variant text-label-sm">3</span>
-</button>
-<button class="vault-tab-btn px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-md text-label-md hover:text-on-surface transition-all flex items-center gap-1.5 whitespace-nowrap" onclick="filterDocs('attestations', this)" type="button">
-<span>Attestations RH</span>
-<span class="px-1.5 py-0.2 rounded-full bg-surface-container-high text-on-surface-variant text-label-sm">4</span>
-</button>
-<button class="vault-tab-btn px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-md text-label-md hover:text-on-surface transition-all flex items-center gap-1.5 whitespace-nowrap" onclick="filterDocs('identite', this)" type="button">
-<span>Identité &amp; État Civil</span>
-<span class="px-1.5 py-0.2 rounded-full bg-surface-container-high text-on-surface-variant text-label-sm">2</span>
-</button>
-<button class="vault-tab-btn px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-md text-label-md hover:text-on-surface transition-all flex items-center gap-1.5 whitespace-nowrap" onclick="filterDocs('diplomes', this)" type="button">
-<span>Diplômes &amp; Certificats</span>
-<span class="px-1.5 py-0.2 rounded-full bg-surface-container-high text-on-surface-variant text-label-sm">3</span>
-</button>
-</div>
-<!-- Search & Layout Helper -->
-<div class="flex items-center gap-space-sm">
-<div class="flex items-center gap-space-xs px-space-md py-1.5 rounded-xl bg-surface-container-lowest shadow-sm text-on-surface-variant">
-<span class="material-symbols-outlined text-[18px]">search</span>
-<input class="bg-transparent border-0 outline-none text-body-sm font-body-sm text-on-surface placeholder:text-on-surface-variant w-44" id="docSearchInput" oninput="searchDocuments(this.value)" placeholder="Filtrer un document..." type="text"/>
-</div>
-<div class="flex items-center p-1 bg-surface-container-low rounded-xl">
-<button class="p-1 rounded-lg bg-surface-container-lowest text-primary shadow-sm" title="Vue Grille" type="button"><span class="material-symbols-outlined text-[18px]">grid_view</span></button>
-<button class="p-1 rounded-lg text-on-surface-variant hover:text-on-surface" title="Vue Liste" type="button"><span class="material-symbols-outlined text-[18px]">view_list</span></button>
-</div>
-</div>
-</div>
-<!-- Documents Bento Grid -->
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-lg" id="documentsContainer">
-<!-- Document 1: Contrat CDI Principal -->
-<div class="doc-card group rounded-xl bg-surface-container-lowest p-space-lg shadow-sm hover:shadow-md transition-all flex flex-col justify-between" data-category="contrats" data-title="Contrat de Travail CDI {{ $user->name }}">
-<div class="flex flex-col gap-space-md">
-<div class="flex items-start justify-between">
-<div class="w-12 h-12 rounded-xl bg-primary-fixed flex items-center justify-center text-primary shrink-0">
-<span class="material-symbols-outlined text-[26px]">contract</span>
-</div>
-<span class="px-2 py-0.5 rounded-full bg-tertiary-container/15 text-tertiary-container font-label-sm text-label-sm flex items-center gap-1 font-medium">
-<span class="w-1.5 h-1.5 rounded-full bg-tertiary-container"></span> Certifié Légal
-              </span>
-</div>
-<div class="flex flex-col">
-<h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">Contrat de Travail CDI</h3>
-<span class="font-numeric-md text-body-sm text-on-surface-variant font-mono truncate mt-0.5">Contrat_CDI_{{ $fileSlug }}.pdf</span>
-</div>
-<!-- Meta attributes -->
-<div class="p-space-sm rounded-lg bg-surface-container-low flex flex-col gap-1">
-<div class="flex items-center justify-between text-body-sm font-body-sm">
-<span class="text-on-surface-variant">Signature :</span>
-<span class="font-numeric-md text-on-surface font-medium">15/01/2020</span>
-</div>
-<div class="flex items-center justify-between text-body-sm font-body-sm">
-<span class="text-on-surface-variant">Empreinte Chiffrée :</span>
-<span class="font-mono text-label-sm text-on-surface truncate w-32 text-right">SHA-256 #8b2c</span>
-</div>
-</div>
-</div>
-<div class="flex items-center gap-space-sm pt-space-md mt-space-sm">
-<button class="flex-1 h-9 rounded-xl bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors flex items-center justify-center gap-1" onclick="downloadTrigger('Contrat_CDI_{{ $fileSlug }}.pdf')" type="button">
-<span class="material-symbols-outlined text-[16px]">download</span>
-<span>Télécharger</span>
-</button>
-<button class="w-9 h-9 rounded-xl bg-surface-container-low text-on-surface-variant hover:text-primary hover:bg-primary-fixed flex items-center justify-center transition-colors" onclick="previewDoc('Contrat CDI Cadre', '15 Janvier 2020')" title="Aperçu rapide" type="button">
-<span class="material-symbols-outlined text-[18px]">visibility</span>
-</button>
-</div>
-</div>
-<!-- Document 2: Attestation de Travail Récente -->
-<div class="doc-card group rounded-xl bg-surface-container-lowest p-space-lg shadow-sm hover:shadow-md transition-all flex flex-col justify-between" data-category="attestations" data-title="Attestation de Travail Récente Mars 2025">
-<div class="flex flex-col gap-space-md">
-<div class="flex items-start justify-between">
-<div class="w-12 h-12 rounded-xl bg-secondary-container flex items-center justify-center text-on-secondary-fixed shrink-0">
-<span class="material-symbols-outlined text-[26px]">verified</span>
-</div>
-<span class="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-fixed font-label-sm text-label-sm flex items-center gap-1 font-medium">
-<span class="material-symbols-outlined text-[12px]">qr_code_2</span> Cachet Électronique
-              </span>
-</div>
-<div class="flex flex-col">
-<h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">Attestation de Travail (Mars 2025)</h3>
-<span class="font-numeric-md text-body-sm text-on-surface-variant font-mono truncate mt-0.5">Attestation_Travail_Mars2025.pdf</span>
-</div>
-<div class="p-space-sm rounded-lg bg-surface-container-low flex flex-col gap-1">
-<div class="flex items-center justify-between text-body-sm font-body-sm">
-<span class="text-on-surface-variant">Génération :</span>
-<span class="font-numeric-md text-on-surface font-medium">01/03/2025 (Automatique)</span>
-</div>
-<div class="flex items-center justify-between text-body-sm font-body-sm">
-<span class="text-on-surface-variant">Validité légale :</span>
-<span class="font-numeric-md text-tertiary-container font-semibold">90 Jours</span>
-</div>
-</div>
-</div>
-<div class="flex items-center gap-space-sm pt-space-md mt-space-sm">
-<button class="flex-1 h-9 rounded-xl bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors flex items-center justify-center gap-1" onclick="downloadTrigger('Attestation_Travail_Mars2025.pdf')" type="button">
-<span class="material-symbols-outlined text-[16px]">download</span>
-<span>Télécharger</span>
-</button>
-<button class="w-9 h-9 rounded-xl bg-surface-container-low text-on-surface-variant hover:text-primary hover:bg-primary-fixed flex items-center justify-center transition-colors" onclick="previewDoc('Attestation de Travail avec QR Code', 'Mars 2025')" title="Aperçu rapide" type="button">
-<span class="material-symbols-outlined text-[18px]">visibility</span>
-</button>
-</div>
-</div>
-<!-- Document 3: Carte d'Identité Nationale -->
-<div class="doc-card group rounded-xl bg-surface-container-lowest p-space-lg shadow-sm hover:shadow-md transition-all flex flex-col justify-between" data-category="identite" data-title="Copie Carte d'Identite Nationale CIN">
-<div class="flex flex-col gap-space-md">
-<div class="flex items-start justify-between">
-<div class="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center text-on-surface shrink-0">
-<span class="material-symbols-outlined text-[26px]">badge</span>
-</div>
-<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm font-medium">
-                Conforme RH
-              </span>
-</div>
-<div class="flex flex-col">
-<h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">Copie Carte d'Identité (CIN)</h3>
-<span class="font-numeric-md text-body-sm text-on-surface-variant font-mono truncate mt-0.5">Copie_CIN_{{ $fileSlug }}.pdf</span>
-</div>
-<div class="p-space-sm rounded-lg bg-surface-container-low flex flex-col gap-1">
-<div class="flex items-center justify-between text-body-sm font-body-sm">
-<span class="text-on-surface-variant">Numéro CIN :</span>
-<span class="font-numeric-md text-on-surface font-semibold">09845211</span>
-</div>
-<div class="flex items-center justify-between text-body-sm font-body-sm">
-<span class="text-on-surface-variant">Expiration :</span>
-<span class="font-numeric-md text-on-surface">14/11/2030</span>
-</div>
-</div>
-</div>
-<div class="flex items-center gap-space-sm pt-space-md mt-space-sm">
-<button class="flex-1 h-9 rounded-xl bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors flex items-center justify-center gap-1" onclick="downloadTrigger('Copie_CIN_{{ $fileSlug }}.pdf')" type="button">
-<span class="material-symbols-outlined text-[16px]">download</span>
-<span>Télécharger</span>
-</button>
-<button class="w-9 h-9 rounded-xl bg-surface-container-low text-on-surface-variant hover:text-primary hover:bg-primary-fixed flex items-center justify-center transition-colors" onclick="previewDoc('Copie CIN Recto-Verso', 'CIN 09845211')" title="Aperçu rapide" type="button">
-<span class="material-symbols-outlined text-[18px]">visibility</span>
-</button>
-</div>
-</div>
-<!-- Document 4: Avenant Promotion Lead -->
-<div class="doc-card group rounded-xl bg-surface-container-lowest p-space-lg shadow-sm hover:shadow-md transition-all flex flex-col justify-between" data-category="contrats" data-title="Avenant Augmentation Promotion Lead 2023">
-<div class="flex flex-col gap-space-md">
-<div class="flex items-start justify-between">
-<div class="w-12 h-12 rounded-xl bg-tertiary-fixed flex items-center justify-center text-on-tertiary-fixed-variant shrink-0">
-<span class="material-symbols-outlined text-[26px]">trending_up</span>
-</div>
-<span class="px-2 py-0.5 rounded-full bg-tertiary-container/15 text-tertiary-container font-label-sm text-label-sm font-semibold">
-                Actif &amp; Appliqué
-              </span>
-</div>
-<div class="flex flex-col">
-<h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">Avenant Promotion Lead Engineer</h3>
-<span class="font-numeric-md text-body-sm text-on-surface-variant font-mono truncate mt-0.5">Avenant_Promotion_Lead_2023.pdf</span>
-</div>
-<div class="p-space-sm rounded-lg bg-surface-container-low flex flex-col gap-1">
-<div class="flex items-center justify-between text-body-sm font-body-sm">
-<span class="text-on-surface-variant">Date d'Effet :</span>
-<span class="font-numeric-md text-on-surface font-medium">01/09/2023</span>
-</div>
-<div class="flex items-center justify-between text-body-sm font-body-sm">
-<span class="text-on-surface-variant">Signataire :</span>
-<span class="font-body-sm text-on-surface">Direction Générale</span>
-</div>
-</div>
-</div>
-<div class="flex items-center gap-space-sm pt-space-md mt-space-sm">
-<button class="flex-1 h-9 rounded-xl bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors flex items-center justify-center gap-1" onclick="downloadTrigger('Avenant_Promotion_Lead_2023.pdf')" type="button">
-<span class="material-symbols-outlined text-[16px]">download</span>
-<span>Télécharger</span>
-</button>
-<button class="w-9 h-9 rounded-xl bg-surface-container-low text-on-surface-variant hover:text-primary hover:bg-primary-fixed flex items-center justify-center transition-colors" onclick="previewDoc('Avenant Cadre Supérieur', 'Septembre 2023')" title="Aperçu rapide" type="button">
-<span class="material-symbols-outlined text-[18px]">visibility</span>
-</button>
-</div>
-</div>
-<!-- Document 5: Attestation CNSS -->
-<div class="doc-card group rounded-xl bg-surface-container-lowest p-space-lg shadow-sm hover:shadow-md transition-all flex flex-col justify-between" data-category="attestations" data-title="Attestation d'Affiliation Bordereau CNSS Individuel">
-<div class="flex flex-col gap-space-md">
-<div class="flex items-start justify-between">
-<div class="w-12 h-12 rounded-xl bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed shrink-0">
-<span class="material-symbols-outlined text-[26px]">policy</span>
-</div>
-<span class="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm font-medium">
-                Bordereau Annuel
-              </span>
-</div>
-<div class="flex flex-col">
-<h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">Attestation d'Affiliation CNSS</h3>
-<span class="font-numeric-md text-body-sm text-on-surface-variant font-mono truncate mt-0.5">Bordereau_CNSS_Individuel.pdf</span>
-</div>
-<div class="p-space-sm rounded-lg bg-surface-container-low flex flex-col gap-1">
-<div class="flex items-center justify-between text-body-sm font-body-sm">
-<span class="text-on-surface-variant">Période :</span>
-<span class="font-numeric-md text-on-surface font-medium">Trimestres 1-4 / 2024</span>
-</div>
-<div class="flex items-center justify-between text-body-sm font-body-sm">
-<span class="text-on-surface-variant">Statut cotisations :</span>
-<span class="font-numeric-md text-tertiary-container font-semibold">En règle (100%)</span>
-</div>
-</div>
-</div>
-<div class="flex items-center gap-space-sm pt-space-md mt-space-sm">
-<button class="flex-1 h-9 rounded-xl bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors flex items-center justify-center gap-1" onclick="downloadTrigger('Bordereau_CNSS_Individuel.pdf')" type="button">
-<span class="material-symbols-outlined text-[16px]">download</span>
-<span>Télécharger</span>
-</button>
-<button class="w-9 h-9 rounded-xl bg-surface-container-low text-on-surface-variant hover:text-primary hover:bg-primary-fixed flex items-center justify-center transition-colors" onclick="previewDoc('Relevé Trimestriel CNSS', 'Exercice 2024')" title="Aperçu rapide" type="button">
-<span class="material-symbols-outlined text-[18px]">visibility</span>
-</button>
-</div>
-</div>
-<!-- Document 6: Certifications Techniques -->
-<div class="doc-card group rounded-xl bg-surface-container-lowest p-space-lg shadow-sm hover:shadow-md transition-all flex flex-col justify-between" data-category="diplomes" data-title="Certifications Techniques AWS Solutions Architect React">
-<div class="flex flex-col gap-space-md">
-<div class="flex items-start justify-between">
-<div class="w-12 h-12 rounded-xl bg-primary-fixed-dim flex items-center justify-center text-primary shrink-0">
-<span class="material-symbols-outlined text-[26px]">workspace_premium</span>
-</div>
-<span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm font-semibold">
-                Certificat Professionnel
-              </span>
-</div>
-<div class="flex flex-col">
-<h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">AWS Solutions Architect - Pro</h3>
-<span class="font-numeric-md text-body-sm text-on-surface-variant font-mono truncate mt-0.5">Certificat_AWS_Solutions_Architect.pdf</span>
-</div>
-<div class="p-space-sm rounded-lg bg-surface-container-low flex flex-col gap-1">
-<div class="flex items-center justify-between text-body-sm font-body-sm">
-<span class="text-on-surface-variant">Délivré par :</span>
-<span class="font-body-sm text-on-surface font-medium">Amazon Web Services</span>
-</div>
-<div class="flex items-center justify-between text-body-sm font-body-sm">
-<span class="text-on-surface-variant">Reconnaissance RH :</span>
-<span class="font-label-sm text-tertiary-container font-semibold">Validé pour Prime Expertise</span>
-</div>
-</div>
-</div>
-<div class="flex items-center gap-space-sm pt-space-md mt-space-sm">
-<button class="flex-1 h-9 rounded-xl bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors flex items-center justify-center gap-1" onclick="downloadTrigger('Certificat_AWS_Solutions_Architect.pdf')" type="button">
-<span class="material-symbols-outlined text-[16px]">download</span>
-<span>Télécharger</span>
-</button>
-<button class="w-9 h-9 rounded-xl bg-surface-container-low text-on-surface-variant hover:text-primary hover:bg-primary-fixed flex items-center justify-center transition-colors" onclick="previewDoc('Certificat AWS Cloud Architect', 'Cert ID: AWS-849201')" title="Aperçu rapide" type="button">
-<span class="material-symbols-outlined text-[18px]">visibility</span>
-</button>
-</div>
-</div>
-</div>
-</div>
-<!-- Fast RH Request Hub ("Demande de documents en 1 clic") -->
-<div class="w-full flex flex-col gap-space-lg pt-space-md" id="fastRequestHub">
-<div class="flex items-center justify-between">
-<div class="flex flex-col gap-space-xs">
-<div class="flex items-center gap-space-xs">
-<span class="material-symbols-outlined text-primary text-[20px]">bolt</span>
-<h2 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Génération &amp; Demande Express en 1-Clic</h2>
-</div>
-<p class="font-body-sm text-body-sm text-on-surface-variant">
-            Générez des pièces officielles signées électroniquement sans délai de traitement administratif.
-          </p>
-</div>
-<span class="hidden md:flex items-center gap-1 text-label-sm font-label-sm text-tertiary-container bg-surface-container-lowest px-space-md py-1 rounded-full shadow-sm">
-<span class="w-2 h-2 rounded-full bg-tertiary-container animate-pulse"></span> Signature Électronique TunTrust Disponible
-        </span>
-</div>
-<div class="grid grid-cols-1 md:grid-cols-3 gap-space-lg">
-<!-- Action 1: Instant Attestation de Travail -->
-<div class="rounded-xl bg-surface-container-lowest p-space-xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
-<div class="flex flex-col gap-space-md">
-<div class="flex items-center justify-between">
-<div class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center shadow-sm">
-<span class="material-symbols-outlined text-[22px]">quick_reference</span>
-</div>
-<span class="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface font-label-sm text-label-sm font-bold">Immédiat (0 min)</span>
-</div>
-<div class="flex flex-col gap-1">
-<h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">Attestation de Travail</h3>
-<p class="font-body-sm text-body-sm text-on-surface-variant">
-                Document standard multilingue (Français/Arabe) certifiant votre statut de Lead Engineer en CDI chez Carthage Tech Solutions.
-              </p>
-</div>
-<div class="flex items-center gap-space-xs text-label-sm font-label-sm text-on-surface-variant">
-<span class="material-symbols-outlined text-[16px] text-tertiary-container">task_alt</span>
-<span>Inclut QR Code de vérification publique</span>
-</div>
-</div>
-<div class="pt-space-lg mt-space-md">
-<button class="w-full h-9.5 px-space-md rounded-xl bg-primary-container text-on-primary font-label-lg text-label-lg hover:bg-primary transition-all flex items-center justify-center gap-space-xs shadow-sm" onclick="generateInstantDoc('Attestation de Travail')" type="button">
-<span class="material-symbols-outlined text-[18px]">bolt</span>
-<span>Générer immédiatement (PDF)</span>
-</button>
-</div>
-</div>
-<!-- Action 2: Attestation de Salaire & Titularisation -->
-<div class="rounded-xl bg-surface-container-lowest p-space-xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
-<div class="flex flex-col gap-space-md">
-<div class="flex items-center justify-between">
-<div class="w-10 h-10 rounded-xl bg-secondary-container text-on-secondary-fixed flex items-center justify-center shadow-sm">
-<span class="material-symbols-outlined text-[22px]">account_balance</span>
-</div>
-<span class="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface font-label-sm text-label-sm font-bold">Visa &amp; Banques</span>
-</div>
-<div class="flex flex-col gap-1">
-<h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">Salaire &amp; Domiciliation</h3>
-<p class="font-body-sm text-body-sm text-on-surface-variant">
-                Attestation de salaire net imposable et confirmation de titularisation pour dossier de crédit bancaire ou dépôt de visa consulaire.
-              </p>
-</div>
-<div class="flex items-center gap-space-xs text-label-sm font-label-sm text-on-surface-variant">
-<span class="material-symbols-outlined text-[16px] text-primary">schedule</span>
-<span>Validation RH automatisée en &lt; 2h ouvrées</span>
-</div>
-</div>
-<div class="pt-space-lg mt-space-md">
-<button class="w-full h-9.5 px-space-md rounded-xl bg-surface-container text-on-surface font-label-lg text-label-lg hover:bg-surface-container-high transition-all flex items-center justify-center gap-space-xs" onclick="openSalaryRequestModal()" type="button">
-<span class="material-symbols-outlined text-[18px]">assignment_turned_in</span>
-<span>Demander avec motif</span>
-</button>
-</div>
-</div>
-<!-- Action 3: Déclaration Changement de Situation -->
-<div class="rounded-xl bg-surface-container-lowest p-space-xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
-<div class="flex flex-col gap-space-md">
-<div class="flex items-center justify-between">
-<div class="w-10 h-10 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center justify-center shadow-sm">
-<span class="material-symbols-outlined text-[22px]">family_restroom</span>
-</div>
-<span class="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface font-label-sm text-label-sm font-bold">Fiscalité &amp; IRPP</span>
-</div>
-<div class="flex flex-col gap-1">
-<h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">Déclaration de Situation</h3>
-<p class="font-body-sm text-body-sm text-on-surface-variant">
-                Transmettez vos changements d'adresse, RIB bancaire, ou acte de naissance d'un enfant pour ajuster vos abattements d'impôt IRPP.
-              </p>
-</div>
-<div class="flex items-center gap-space-xs text-label-sm font-label-sm text-on-surface-variant">
-<span class="material-symbols-outlined text-[16px] text-tertiary-container">tune</span>
-<span>Mise à jour directe du barème de paie</span>
-</div>
-</div>
-<div class="pt-space-lg mt-space-md">
-<button class="w-full h-9.5 px-space-md rounded-xl bg-surface-container text-on-surface font-label-lg text-label-lg hover:bg-surface-container-high transition-all flex items-center justify-center gap-space-xs" onclick="openSituationModal()" type="button">
-<span class="material-symbols-outlined text-[18px]">edit_document</span>
-<span>Déclarer un changement</span>
-</button>
-</div>
-</div>
-</div>
-</div>
-<!-- Security, Regulatory Assurance & INPDP Seal Notice -->
-<div class="w-full rounded-xl bg-surface-container-low p-space-lg flex flex-col md:flex-row items-center justify-between gap-space-lg shadow-sm">
-<div class="flex items-start gap-space-md">
-<div class="w-10 h-10 rounded-xl bg-tertiary-container text-on-tertiary flex items-center justify-center shrink-0 shadow-sm">
-<span class="material-symbols-outlined text-[22px]">shield_lock</span>
-</div>
-<div class="flex flex-col">
-<div class="flex items-center gap-space-xs">
-<span class="font-label-lg text-label-lg text-on-surface font-bold">Sécurité &amp; Protection des Données INPDP (Tunisie)</span>
-<span class="px-2 py-0.2 rounded bg-tertiary-container/15 text-tertiary-container text-label-sm font-label-sm font-semibold">Loi n° 2004-63</span>
-</div>
-<p class="font-body-sm text-body-sm text-on-surface-variant max-w-4xl mt-0.5">
-            Vos documents contractuels et données biométriques/personnelles sont hébergés sur le sol tunisien dans une infrastructure certifiée ISO 27001 &amp; SOC 2 Type II. Tout accès fait l'objet d'un journal d'audit immuable conforme aux directives de l'Instance Nationale de Protection des Données Personnelles.
-          </p>
-</div>
-</div>
-<div class="flex items-center gap-space-sm shrink-0">
-<div class="flex flex-col text-right">
-<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Stockage Sécurisé</span>
-<span class="font-numeric-md text-numeric-md font-bold text-on-surface">DataCenter Tunis Ouest</span>
-</div>
-<span class="w-3 h-3 rounded-full bg-tertiary-container" title="Serveur opérationnel"></span>
-</div>
-</div>
-</div>
-<!-- Micro-Interaction Modals & Toast Containers -->
-<!-- Preview Drawer / Modal -->
-<div class="fixed inset-0 bg-inverse-surface/40 backdrop-blur-[2px] z-50 hidden items-center justify-center p-space-lg" id="previewModal">
-<div class="w-full max-w-lg rounded-xl bg-surface-container-lowest p-space-xl shadow-xl flex flex-col gap-space-lg">
-<div class="flex items-center justify-between">
-<div class="flex items-center gap-space-xs">
-<span class="material-symbols-outlined text-primary text-[22px]">description</span>
-<h3 class="font-headline-sm text-headline-sm text-on-surface" id="previewTitle">Aperçu du Document</h3>
-</div>
-<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container hover:text-on-surface" onclick="closePreviewModal()" type="button">
-<span class="material-symbols-outlined text-[18px]">close</span>
-</button>
-</div>
-<div class="p-space-lg rounded-xl bg-surface-container-low flex flex-col gap-space-sm">
-<div class="flex justify-between items-center text-body-sm font-body-sm">
-<span class="text-on-surface-variant">Référence :</span>
-<span class="font-numeric-md text-on-surface font-semibold" id="previewMeta">REF-2025-TN</span>
-</div>
-<div class="flex justify-between items-center text-body-sm font-body-sm">
-<span class="text-on-surface-variant">Signature :</span>
-<span class="text-tertiary-container font-label-md font-medium flex items-center gap-1">
-<span class="material-symbols-outlined text-[14px]">check_circle</span> Signature Numérique Carthage Tech
-          </span>
-</div>
-<div class="h-32 rounded-lg bg-surface-container-lowest p-space-md flex flex-col justify-center items-center text-center">
-<span class="material-symbols-outlined text-outline-variant text-[40px] mb-1">picture_as_pdf</span>
-<span class="font-label-sm text-label-sm text-on-surface-variant">Aperçu haute résolution prêt pour impression ou transfert</span>
-</div>
-</div>
-<div class="flex items-center justify-end gap-space-sm pt-space-xs">
-<button class="h-9 px-space-lg rounded-xl bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors" onclick="closePreviewModal()" type="button">
-          Fermer
-        </button>
-<button class="h-9 px-space-lg rounded-xl bg-primary text-on-primary font-label-lg text-label-lg hover:bg-primary-container transition-all flex items-center gap-1 shadow-sm" onclick="downloadCurrentPreview()" type="button">
-<span class="material-symbols-outlined text-[16px]">download</span>
-<span>Télécharger le PDF</span>
-</button>
-</div>
-</div>
-</div>
-<!-- Interactive Update Info Modal -->
-<div class="fixed inset-0 bg-inverse-surface/40 backdrop-blur-[2px] z-50 hidden items-center justify-center p-space-lg" id="updateModal">
-<div class="w-full max-w-lg rounded-xl bg-surface-container-lowest p-space-xl shadow-xl flex flex-col gap-space-lg">
-<div class="flex items-center justify-between">
-<div class="flex items-center gap-space-xs">
-<span class="material-symbols-outlined text-primary text-[22px]">manage_accounts</span>
-<h3 class="font-headline-sm text-headline-sm text-on-surface">Mise à jour du Dossier Collaborateur</h3>
-</div>
-<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container hover:text-on-surface" onclick="closeUpdateModal()" type="button">
-<span class="material-symbols-outlined text-[18px]">close</span>
-</button>
-</div>
-<form class="flex flex-col gap-space-md" id="updateProfileForm" onsubmit="handleProfileSubmit(event)">
-<div class="flex flex-col gap-space-xs">
-<label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Téléphone Professionnel</label>
-<input class="h-9.5 px-space-md rounded-lg bg-surface-container-lowest border-0 ring-1 ring-outline-variant text-on-surface font-numeric-md text-numeric-md focus:ring-2 focus:ring-primary outline-none" required="" type="text" value="+216 98 412 890"/>
-</div>
-<div class="flex flex-col gap-space-xs">
-<label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Contact d'Urgence (Nom &amp; Lien)</label>
-<input class="h-9.5 px-space-md rounded-lg bg-surface-container-lowest border-0 ring-1 ring-outline-variant text-on-surface font-body-md text-body-md focus:ring-2 focus:ring-primary outline-none" required="" type="text" value="Leila Ben Salem (Épouse)"/>
-</div>
-<div class="flex flex-col gap-space-xs">
-<label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Téléphone d'Urgence</label>
-<input class="h-9.5 px-space-md rounded-lg bg-surface-container-lowest border-0 ring-1 ring-outline-variant text-on-surface font-numeric-md text-numeric-md focus:ring-2 focus:ring-primary outline-none" required="" type="text" value="+216 22 555 120"/>
-</div>
-<div class="flex flex-col gap-space-xs">
-<label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Adresse Résidentielle (Tunis)</label>
-<input class="h-9.5 px-space-md rounded-lg bg-surface-container-lowest border-0 ring-1 ring-outline-variant text-on-surface font-body-md text-body-md focus:ring-2 focus:ring-primary outline-none" required="" type="text" value="Résidence Les Jardins, Ennasr 2, Ariana"/>
-</div>
-<div class="flex items-center justify-end gap-space-sm pt-space-md">
-<button class="h-9 px-space-lg rounded-xl bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors" onclick="closeUpdateModal()" type="button">
-            Annuler
-          </button>
-<button class="h-9 px-space-lg rounded-xl bg-primary text-on-primary font-label-lg text-label-lg hover:bg-primary-container transition-all shadow-sm" type="submit">
-            Enregistrer les modifications
-          </button>
-</div>
-</form>
-</div>
-</div>
-<!-- Fast Notification Toast -->
-<div class="fixed bottom-6 right-6 z-50 hidden bg-inverse-surface text-inverse-on-surface px-space-lg py-space-md rounded-xl shadow-xl flex items-center gap-space-md transition-all" id="systemToast">
-<span class="material-symbols-outlined text-[20px] text-tertiary-fixed">check_circle</span>
-<span class="font-body-sm text-body-sm" id="toastMessage">Document généré et ajouté à votre coffre-fort.</span>
-</div>
-<script>
-    // Tab Filtering
-    function filterDocs(cat, btn) {
-      document.querySelectorAll('.vault-tab-btn').forEach(b => {
-        b.classList.remove('bg-surface-container-lowest', 'text-primary', 'shadow-sm', 'font-semibold');
-        b.classList.add('text-on-surface-variant');
-      });
-      btn.classList.add('bg-surface-container-lowest', 'text-primary', 'shadow-sm', 'font-semibold');
-      btn.classList.remove('text-on-surface-variant');
+    <div class="flex flex-col w-full">
+        <div class="px-4 sm:px-margin py-space-xl flex flex-col gap-space-xl max-w-[1536px] mx-auto w-full">
 
-      const cards = document.querySelectorAll('.doc-card');
-      cards.forEach(card => {
-        if (cat === 'all' || card.getAttribute('data-category') === cat) {
-          card.classList.remove('hidden');
-          card.classList.add('flex');
-        } else {
-          card.classList.add('hidden');
-          card.classList.remove('flex');
-        }
-      });
-    }
+            <!-- Header -->
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-lg">
+                <div class="flex flex-col gap-space-xs">
+                    <div class="flex flex-wrap items-center gap-space-sm">
+                        <span class="px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-fixed text-label-sm font-label-sm uppercase tracking-wider font-semibold">Portail e-RH Certifié</span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-tertiary-container"></span>
+                        <span class="text-label-sm font-label-sm text-on-surface-variant flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[14px] text-tertiary">verified</span> Coffre-fort privé
+                        </span>
+                    </div>
+                    <h1 class="font-display-lg text-display-lg text-on-surface tracking-tight">Mes Documents &amp; Coffre-Fort Numérique</h1>
+                    <p class="font-body-md text-body-md text-on-surface-variant max-w-3xl">
+                        Accédez à vos documents contractuels et attestations certifiées, demandez une pièce RH ou générez immédiatement votre attestation de travail.
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-space-sm shrink-0">
+                    <button class="h-10 px-space-lg rounded-xl bg-surface-container text-on-surface font-label-lg text-label-lg flex items-center gap-space-xs hover:bg-surface-container-high transition-all shadow-sm" data-open-modal="updateModal" type="button">
+                        <span class="material-symbols-outlined text-[18px] text-on-surface-variant">badge</span>
+                        <span>Mettre à jour mes infos</span>
+                    </button>
+                    <a class="h-10 px-space-lg rounded-xl bg-primary-fill text-on-primary font-label-lg text-label-lg flex items-center gap-space-xs hover:bg-primary-container shadow-sm transition-all" href="#demande-document">
+                        <span class="material-symbols-outlined text-[18px]">add_circle</span>
+                        <span>Demander un Document RH</span>
+                    </a>
+                </div>
+            </div>
 
-    // Search Filtering
-    function searchDocuments(query) {
-      const q = query.toLowerCase().trim();
-      const cards = document.querySelectorAll('.doc-card');
-      cards.forEach(card => {
-        const title = card.getAttribute('data-title').toLowerCase();
-        if (title.includes(q)) {
-          card.classList.remove('hidden');
-          card.classList.add('flex');
-        } else {
-          card.classList.add('hidden');
-          card.classList.remove('flex');
-        }
-      });
-    }
+            <!-- Identity card -->
+            <div class="w-full rounded-xl bg-surface-container-lowest p-space-xl shadow-sm flex flex-col xl:flex-row gap-space-xl relative overflow-hidden">
+                <div class="absolute -right-20 -bottom-20 w-80 h-80 rounded-full bg-primary/5 pointer-events-none blur-3xl"></div>
 
-    // Quick Toast Feedback
-    function showToast(msg) {
-      const toast = document.getElementById('systemToast');
-      const text = document.getElementById('toastMessage');
-      text.innerText = msg;
-      toast.classList.remove('hidden');
-      setTimeout(() => {
-        toast.classList.add('hidden');
-      }, 3500);
-    }
+                <div class="flex items-start gap-space-lg xl:w-4/12 shrink-0">
+                    <div class="relative">
+                        <div class="w-20 h-20 rounded-xl shadow-sm bg-primary-fill flex items-center justify-center">
+                            <span class="text-on-primary text-headline-lg font-bold">{{ $employee->initials() }}</span>
+                        </div>
+                        <span class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-tertiary-container text-on-tertiary flex items-center justify-center shadow-sm" title="{{ $employee->statusLabel() }}">
+                            <span class="material-symbols-outlined text-[14px]">check</span>
+                        </span>
+                    </div>
+                    <div class="flex flex-col min-w-0">
+                        <div class="flex items-center gap-space-xs mb-0.5">
+                            <h2 class="font-headline-md text-headline-md text-on-surface truncate">{{ $employee->name }}</h2>
+                        </div>
+                        <span class="font-label-lg text-label-lg text-primary font-semibold">{{ $employee->position ?: 'Collaborateur' }}</span>
+                        <span class="font-body-sm text-body-sm text-on-surface-variant">{{ $employee->departmentLabel() }}</span>
+                        <div class="flex flex-wrap items-center gap-space-xs mt-2">
+                            <span class="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface font-label-sm text-label-sm">Matricule: <span class="font-numeric-md text-numeric-md font-semibold text-on-surface">{{ $employee->matricule() }}</span></span>
+                            <span class="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-fixed text-label-sm font-label-sm font-medium">{{ $employee->contract_type ?: 'Contrat' }} • {{ $employee->statusLabel() }}</span>
+                        </div>
+                    </div>
+                </div>
 
-    // Instant Document Trigger
-    function generateInstantDoc(type) {
-      showToast('Génération immédiate de l\'Attestation de Travail en cours...');
-      setTimeout(() => {
-        showToast('Document signé électroniquement disponible en téléchargement.');
-      }, 1200);
-    }
+                <div class="grid grid-cols-2 sm:grid-cols-2 gap-space-md xl:w-5/12 bg-surface-container-low p-space-lg rounded-xl">
+                    <div class="flex flex-col">
+                        <span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">C.I.N Nationale</span>
+                        <div class="flex items-baseline gap-1 mt-0.5">
+                            <span class="font-numeric-md text-numeric-md font-bold text-on-surface">{{ $employee->cin ?: '—' }}</span>
+                        </div>
+                        <span class="font-label-sm text-label-sm text-tertiary-container font-medium mt-1 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[13px]">verified_user</span> {{ $employee->cin ? 'Référence RH' : 'À compléter' }}
+                        </span>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Immatriculation CNSS</span>
+                        <span class="font-numeric-md text-numeric-md font-bold text-on-surface mt-0.5">{{ $employee->cnss_number ?: '—' }}</span>
+                        <span class="font-label-sm text-label-sm text-on-surface-variant mt-1">{{ $employee->hasCompleteCnssProfile() ? 'Caisse Tunis / Régime Général' : 'Profil à compléter' }}</span>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Date d'Embauche</span>
+                        <span class="font-numeric-md text-numeric-md font-semibold text-on-surface mt-0.5">{{ $employee->hire_date?->locale('fr')->translatedFormat('d F Y') ?? '—' }}</span>
+                        <span class="font-label-sm text-label-sm text-on-surface-variant mt-1">{{ $employee->seniorityLabel() }}</span>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Situation &amp; Famille</span>
+                        <span class="font-label-md text-label-md font-semibold text-on-surface mt-0.5">{{ $familyLabel }}</span>
+                        <span class="font-label-sm text-label-sm text-on-surface-variant mt-1">{{ (int) $employee->children }} enfant(s) à charge</span>
+                    </div>
+                </div>
 
-    function downloadTrigger(fileName) {
-      showToast('Téléchargement sécurisé : ' + fileName);
-    }
+                <div class="flex flex-col justify-between gap-space-sm xl:w-3/12 bg-surface-container-high/40 p-space-lg rounded-xl">
+                    <div class="flex flex-col gap-1">
+                        <span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[15px] text-primary">contacts</span> Coordonnées Directes
+                        </span>
+                        <span class="font-body-sm text-body-sm text-on-surface truncate mt-1">{{ $employee->email ?: auth()->user()->email }}</span>
+                        <span class="font-numeric-md text-numeric-md font-medium text-on-surface">{{ $employee->mobile ?: 'Téléphone non renseigné' }}</span>
+                        <span class="font-label-sm text-label-sm text-on-surface-variant truncate">{{ $employee->address ?: 'Adresse non renseignée' }}</span>
+                    </div>
+                    <div class="flex flex-col gap-0.5 pt-2">
+                        <span class="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[14px] text-error">emergency</span> Contact d'Urgence
+                        </span>
+                        <span class="font-body-sm text-body-sm font-semibold text-on-surface">{{ $employee->emergency_contact_name ?: 'Non renseigné' }}</span>
+                        <span class="font-numeric-md text-numeric-md text-on-surface-variant">{{ $employee->emergency_contact_phone ?: '—' }}</span>
+                    </div>
+                </div>
+            </div>
 
-    // Preview Modal Logic
-    let currentActiveDoc = '';
-    function previewDoc(title, meta) {
-      currentActiveDoc = title;
-      document.getElementById('previewTitle').innerText = title;
-      document.getElementById('previewMeta').innerText = meta;
-      document.getElementById('previewModal').classList.remove('hidden');
-      document.getElementById('previewModal').classList.add('flex');
-    }
+            <!-- Vault -->
+            <div class="flex flex-col gap-space-lg">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+                    <div class="flex items-center gap-1 p-1 bg-surface-container-low rounded-xl overflow-x-auto max-w-full">
+                        <button class="vault-tab-btn px-space-md py-space-xs rounded-lg bg-surface-container-lowest text-primary font-label-md text-label-md shadow-sm font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap" data-category="all" type="button">
+                            <span>Tous les documents</span>
+                            <span class="px-1.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-fixed text-label-sm">{{ $documents->count() }}</span>
+                        </button>
+                        @foreach ($categoryCounts as $category => $count)
+                            <button class="vault-tab-btn px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-md text-label-md hover:text-on-surface transition-all flex items-center gap-1.5 whitespace-nowrap" data-category="{{ $category }}" type="button">
+                                <span>{{ \App\Models\Document::CATEGORIES[$category] ?? $category }}</span>
+                                <span class="px-1.5 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant text-label-sm">{{ $count }}</span>
+                            </button>
+                        @endforeach
+                    </div>
 
-    function closePreviewModal() {
-      document.getElementById('previewModal').classList.add('hidden');
-      document.getElementById('previewModal').classList.remove('flex');
-    }
+                    <div class="flex flex-wrap items-center gap-space-sm">
+                        <div class="flex items-center gap-space-xs px-space-md py-1.5 rounded-xl bg-surface-container-lowest shadow-sm text-on-surface-variant">
+                            <span class="material-symbols-outlined text-[18px]">search</span>
+                            <input class="bg-transparent border-0 outline-none text-body-sm font-body-sm text-on-surface placeholder:text-on-surface-variant w-44" id="docSearchInput" placeholder="Filtrer un document..." type="text"/>
+                        </div>
+                        <div class="flex items-center p-1 bg-surface-container-low rounded-xl" role="group" aria-label="Disposition">
+                            <button class="layout-btn p-1 rounded-lg bg-surface-container-lowest text-primary shadow-sm" data-layout="grid" title="Vue Grille" type="button">
+                                <span class="material-symbols-outlined text-[18px]">grid_view</span>
+                            </button>
+                            <button class="layout-btn p-1 rounded-lg text-on-surface-variant hover:text-on-surface" data-layout="list" title="Vue Liste" type="button">
+                                <span class="material-symbols-outlined text-[18px]">view_list</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
-    function downloadCurrentPreview() {
-      closePreviewModal();
-      showToast('Téléchargement du document certifié : ' + currentActiveDoc);
-    }
+                <div class="flex flex-wrap items-center gap-3 text-label-sm font-label-sm text-on-surface-variant">
+                    <span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-primary">storage</span> {{ $sizeLabel((int) $totalSize) }} stockés</span>
+                    @if ($expiringCount > 0)
+                        <span class="inline-flex items-center gap-1 text-error font-semibold"><span class="material-symbols-outlined text-[16px]">warning</span> {{ $expiringCount }} document(s) expirant sous 60 jours</span>
+                    @else
+                        <span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-tertiary-container">task_alt</span> Aucune expiration proche</span>
+                    @endif
+                </div>
 
-    // Update Profile Modal
-    function openUpdateModal() {
-      document.getElementById('updateModal').classList.remove('hidden');
-      document.getElementById('updateModal').classList.add('flex');
-    }
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-lg" id="documentsContainer">
+                    @forelse ($documents as $document)
+                        <div class="doc-card group rounded-xl bg-surface-container-lowest p-space-lg shadow-sm hover:shadow-md transition-all flex flex-col justify-between" data-category="{{ $document->category }}" data-title="{{ strtolower($document->name.' '.$document->original_name.' '.$document->categoryLabel()) }}">
+                            <div class="flex flex-col gap-space-md">
+                                <div class="flex items-start justify-between gap-space-xs">
+                                    <div class="w-12 h-12 rounded-xl {{ $categoryTones[$document->category] ?? 'bg-surface-container-high text-on-surface' }} flex items-center justify-center shrink-0">
+                                        <span class="material-symbols-outlined text-[26px]">{{ $categoryIcons[$document->category] ?? 'description' }}</span>
+                                    </div>
+                                    <span class="px-2 py-0.5 rounded-full {{ $document->statusPillClasses() }} font-label-sm text-label-sm flex items-center gap-1 font-medium">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-current opacity-70"></span>
+                                        {{ $document->statusLabel() }}
+                                    </span>
+                                </div>
+                                <div class="flex flex-col">
+                                    <h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors truncate">{{ $document->name }}</h3>
+                                    <span class="font-numeric-md text-body-sm text-on-surface-variant font-mono truncate mt-0.5">{{ $document->original_name ?: basename($document->path) }}</span>
+                                </div>
+                                <div class="p-space-sm rounded-lg bg-surface-container-low flex flex-col gap-1">
+                                    <div class="flex items-center justify-between text-body-sm font-body-sm">
+                                        <span class="text-on-surface-variant">Catégorie :</span>
+                                        <span class="font-body-sm text-on-surface font-medium truncate max-w-[160px]">{{ $document->categoryLabel() }}</span>
+                                    </div>
+                                    <div class="flex items-center justify-between text-body-sm font-body-sm">
+                                        <span class="text-on-surface-variant">Ajouté le :</span>
+                                        <span class="font-numeric-md text-on-surface font-medium">{{ $document->created_at?->format('d/m/Y') ?? '—' }}</span>
+                                    </div>
+                                    <div class="flex items-center justify-between text-body-sm font-body-sm">
+                                        <span class="text-on-surface-variant">Taille :</span>
+                                        <span class="font-numeric-md text-on-surface font-medium">{{ $document->sizeLabel() }}</span>
+                                    </div>
+                                    @if ($document->expires_at)
+                                        <div class="flex items-center justify-between text-body-sm font-body-sm">
+                                            <span class="text-on-surface-variant">Expiration :</span>
+                                            <span class="font-numeric-md font-semibold {{ $document->isExpired() ? 'text-error' : ($document->isExpiringSoon() ? 'text-error' : 'text-tertiary-container') }}">
+                                                {{ $document->expires_at->format('d/m/Y') }}
+                                            </span>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-space-sm pt-space-md mt-space-sm">
+                                <a class="flex-1 h-9 rounded-xl bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors flex items-center justify-center gap-1" href="{{ route('collaborator.documents.download', $document) }}">
+                                    <span class="material-symbols-outlined text-[16px]">download</span>
+                                    <span>Télécharger</span>
+                                </a>
+                                <button class="w-9 h-9 rounded-xl bg-surface-container-low text-on-surface-variant hover:text-primary hover:bg-primary-fixed flex items-center justify-center transition-colors" data-preview data-preview-title="{{ $document->name }}" data-preview-meta="{{ $document->categoryLabel() }} • {{ $document->sizeLabel() }} • {{ $document->statusLabel() }}" data-preview-url="{{ route('collaborator.documents.download', $document) }}" title="Aperçu rapide" type="button">
+                                    <span class="material-symbols-outlined text-[18px]">visibility</span>
+                                </button>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="md:col-span-2 lg:col-span-3">
+                            <x-collaborator.partials.empty-state
+                                icon="folder_off"
+                                title="Votre coffre-fort est vide"
+                                text="Les documents déposés par le service RH apparaîtront ici. Vous pouvez aussi générer immédiatement une attestation de travail."
+                            />
+                        </div>
+                    @endforelse
+                </div>
+            </div>
 
-    function closeUpdateModal() {
-      document.getElementById('updateModal').classList.add('hidden');
-      document.getElementById('updateModal').classList.remove('flex');
-    }
+            <!-- Express request hub -->
+            <div class="w-full flex flex-col gap-space-lg pt-space-md scroll-mt-24" id="demande-document">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm">
+                    <div class="flex flex-col gap-space-xs">
+                        <div class="flex items-center gap-space-xs">
+                            <span class="material-symbols-outlined text-primary text-[20px]">bolt</span>
+                            <h2 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Génération &amp; Demande Express</h2>
+                        </div>
+                        <p class="font-body-sm text-body-sm text-on-surface-variant">
+                            Générez votre attestation de travail immédiatement ou transmettez une demande au service RH.
+                        </p>
+                    </div>
+                    <span class="hidden md:flex items-center gap-1 text-label-sm font-label-sm text-tertiary-container bg-surface-container-lowest px-space-md py-1 rounded-full shadow-sm">
+                        <span class="w-2 h-2 rounded-full bg-tertiary-container animate-pulse"></span> Service RH disponible
+                    </span>
+                </div>
 
-    function handleProfileSubmit(e) {
-      e.preventDefault();
-      closeUpdateModal();
-      showToast('Vos informations collaborateur ont été mises à jour avec succès.');
-    }
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-space-lg">
+                    <div class="rounded-xl bg-surface-container-lowest p-space-xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
+                        <div class="flex flex-col gap-space-md">
+                            <div class="flex items-center justify-between">
+                                <div class="w-10 h-10 rounded-xl bg-primary-fill text-on-primary flex items-center justify-center shadow-sm">
+                                    <span class="material-symbols-outlined text-[22px]">quick_reference</span>
+                                </div>
+                                <span class="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface font-label-sm text-label-sm font-bold">Immédiat (0 min)</span>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">Attestation de Travail</h3>
+                                <p class="font-body-sm text-body-sm text-on-surface-variant">
+                                    Document PDF certifiant votre statut de {{ $employee->position ?: 'collaborateur' }} chez Carthage Tech Solutions.
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-space-xs text-label-sm font-label-sm text-on-surface-variant">
+                                <span class="material-symbols-outlined text-[16px] text-tertiary-container">task_alt</span>
+                                <span>Ajoutée automatiquement à votre coffre-fort</span>
+                            </div>
+                        </div>
+                        <form class="pt-space-lg mt-space-md" method="POST" action="{{ route('collaborator.documents.attestation') }}">
+                            @csrf
+                            <button class="w-full h-10 px-space-md rounded-xl bg-primary-container text-on-primary font-label-lg text-label-lg hover:bg-primary-fill transition-all flex items-center justify-center gap-space-xs shadow-sm" type="submit">
+                                <span class="material-symbols-outlined text-[18px]">bolt</span>
+                                <span>Générer immédiatement (PDF)</span>
+                            </button>
+                        </form>
+                    </div>
 
-    function scrollToFastRequest() {
-      document.getElementById('fastRequestHub').scrollIntoView({ behavior: 'smooth' });
-    }
+                    <div class="rounded-xl bg-surface-container-lowest p-space-xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
+                        <div class="flex flex-col gap-space-md">
+                            <div class="flex items-center justify-between">
+                                <div class="w-10 h-10 rounded-xl bg-secondary-container text-on-secondary-fixed flex items-center justify-center shadow-sm">
+                                    <span class="material-symbols-outlined text-[22px]">account_balance</span>
+                                </div>
+                                <span class="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface font-label-sm text-label-sm font-bold">Visa &amp; Banques</span>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">Salaire &amp; Domiciliation</h3>
+                                <p class="font-body-sm text-body-sm text-on-surface-variant">
+                                    Attestation de salaire et confirmation de titularisation pour dossier bancaire ou visa consulaire.
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-space-xs text-label-sm font-label-sm text-on-surface-variant">
+                                <span class="material-symbols-outlined text-[16px] text-primary">schedule</span>
+                                <span>Traitement RH sous 48h ouvrées</span>
+                            </div>
+                        </div>
+                        <div class="pt-space-lg mt-space-md">
+                            <button class="w-full h-10 px-space-md rounded-xl bg-surface-container text-on-surface font-label-lg text-label-lg hover:bg-surface-container-high transition-all flex items-center justify-center gap-space-xs" data-open-modal="requestModal" data-request-type="attestation_salaire" type="button">
+                                <span class="material-symbols-outlined text-[18px]">assignment_turned_in</span>
+                                <span>Demander avec motif</span>
+                            </button>
+                        </div>
+                    </div>
 
-    function openSalaryRequestModal() {
-      showToast('Formulaire de demande d\'attestation de salaire transmis au service RH.');
-    }
+                    <div class="rounded-xl bg-surface-container-lowest p-space-xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
+                        <div class="flex flex-col gap-space-md">
+                            <div class="flex items-center justify-between">
+                                <div class="w-10 h-10 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center justify-center shadow-sm">
+                                    <span class="material-symbols-outlined text-[22px]">family_restroom</span>
+                                </div>
+                                <span class="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface font-label-sm text-label-sm font-bold">Fiscalité &amp; IRPP</span>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">Déclaration de Situation</h3>
+                                <p class="font-body-sm text-body-sm text-on-surface-variant">
+                                    Déclarez un changement d'adresse, de RIB ou une naissance pour ajuster vos abattements IRPP.
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-space-xs text-label-sm font-label-sm text-on-surface-variant">
+                                <span class="material-symbols-outlined text-[16px] text-tertiary-container">tune</span>
+                                <span>Précisez la situation à déclarer</span>
+                            </div>
+                        </div>
+                        <div class="pt-space-lg mt-space-md">
+                            <button class="w-full h-10 px-space-md rounded-xl bg-surface-container text-on-surface font-label-lg text-label-lg hover:bg-surface-container-high transition-all flex items-center justify-center gap-space-xs" data-open-modal="requestModal" data-request-type="declaration_situation" type="button">
+                                <span class="material-symbols-outlined text-[18px]">edit_document</span>
+                                <span>Déclarer un changement</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
-    function openSituationModal() {
-      showToast('Ouverture du dossier de déclaration fiscale & état civil...');
-    }
-  </script>
-</div>
+                <div class="flex flex-col gap-space-sm">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Suivi de mes demandes</h3>
+                        <span class="font-label-sm text-label-sm text-on-surface-variant">{{ $requests->count() }} demande(s)</span>
+                    </div>
+                    @forelse ($requests as $requestItem)
+                        <div class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm">
+                            <div class="flex items-start gap-space-sm">
+                                <div class="w-9 h-9 rounded-lg bg-surface-container-low text-primary flex items-center justify-center shrink-0">
+                                    <span class="material-symbols-outlined text-[18px]">description</span>
+                                </div>
+                                <div class="flex flex-col">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="font-label-lg text-label-lg font-semibold text-on-surface">{{ $requestItem->typeLabel() }}</span>
+                                        <span class="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-label-sm text-[10px]">{{ $requestItem->reference() }}</span>
+                                    </div>
+                                    <span class="font-body-sm text-body-sm text-on-surface-variant">{{ $requestItem->purpose ?: 'Aucun motif précisé' }}</span>
+                                    <span class="font-label-sm text-[11px] text-on-surface-variant">Déposée le {{ $requestItem->created_at?->locale('fr')->translatedFormat('d F Y H:i') }}</span>
+                                    @if ($requestItem->notes)
+                                        <span class="font-label-sm text-[11px] text-on-surface-variant">RH : {{ $requestItem->notes }}</span>
+                                    @endif
+                                </div>
+                            </div>
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full {{ $requestItem->statusPillClasses() }} font-label-sm text-label-sm font-semibold shrink-0">
+                                <span class="w-1.5 h-1.5 rounded-full bg-current opacity-70"></span>
+                                {{ $requestItem->statusLabel() }}
+                            </span>
+                        </div>
+                    @empty
+                        <x-collaborator.partials.empty-state
+                            icon="assignment"
+                            title="Aucune demande de document"
+                            text="Vos demandes d'attestations et déclarations apparaîtront ici avec leur statut de traitement."
+                        />
+                    @endforelse
+                </div>
+            </div>
+
+            <!-- INPDP notice -->
+            <div class="w-full rounded-xl bg-surface-container-low p-space-lg flex flex-col md:flex-row items-center justify-between gap-space-lg shadow-sm">
+                <div class="flex items-start gap-space-md">
+                    <div class="w-10 h-10 rounded-xl bg-tertiary-container text-on-tertiary flex items-center justify-center shrink-0 shadow-sm">
+                        <span class="material-symbols-outlined text-[22px]">shield_lock</span>
+                    </div>
+                    <div class="flex flex-col">
+                        <div class="flex flex-wrap items-center gap-space-xs">
+                            <span class="font-label-lg text-label-lg text-on-surface font-bold">Sécurité &amp; Protection des Données INPDP (Tunisie)</span>
+                            <span class="px-2 py-0.5 rounded bg-tertiary-container/15 text-tertiary-container text-label-sm font-label-sm font-semibold">Loi n° 2004-63</span>
+                        </div>
+                        <p class="font-body-sm text-body-sm text-on-surface-variant max-w-4xl mt-0.5">
+                            Vos documents et données personnelles restent accessibles uniquement à vous et au service RH autorisé. Chaque téléchargement est vérifié côté serveur.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-space-sm shrink-0">
+                    <div class="flex flex-col text-right">
+                        <span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Stockage Sécurisé</span>
+                        <span class="font-numeric-md text-numeric-md font-bold text-on-surface">Serveur RH local</span>
+                    </div>
+                    <span class="w-3 h-3 rounded-full bg-tertiary-container" title="Service opérationnel"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview modal -->
+    <div class="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-50 hidden items-center justify-center p-space-lg" id="previewModal" data-modal>
+        <div class="w-full max-w-lg rounded-xl bg-surface-container-lowest p-space-xl shadow-xl flex flex-col gap-space-lg">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-space-xs">
+                    <span class="material-symbols-outlined text-primary text-[22px]">description</span>
+                    <h3 class="font-headline-sm text-headline-sm text-on-surface" id="previewTitle">Aperçu du Document</h3>
+                </div>
+                <button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container hover:text-on-surface" data-close-modal="previewModal" type="button">
+                    <span class="material-symbols-outlined text-[18px]">close</span>
+                </button>
+            </div>
+            <div class="p-space-lg rounded-xl bg-surface-container-low flex flex-col gap-space-sm">
+                <div class="flex justify-between items-center text-body-sm font-body-sm">
+                    <span class="text-on-surface-variant">Détails :</span>
+                    <span class="font-label-md text-on-surface font-semibold text-right" id="previewMeta">—</span>
+                </div>
+                <div class="flex justify-between items-center text-body-sm font-body-sm">
+                    <span class="text-on-surface-variant">Accès :</span>
+                    <span class="text-tertiary-container font-label-md font-medium flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[14px]">check_circle</span> Vérifié côté serveur
+                    </span>
+                </div>
+                <div class="h-32 rounded-lg bg-surface-container-lowest p-space-md flex flex-col justify-center items-center text-center">
+                    <span class="material-symbols-outlined text-outline-variant text-[40px] mb-1">picture_as_pdf</span>
+                    <span class="font-label-sm text-label-sm text-on-surface-variant">Téléchargez le document pour l'ouvrir dans votre lecteur PDF</span>
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-space-sm pt-space-xs">
+                <button class="h-9 px-space-lg rounded-xl bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors" data-close-modal="previewModal" type="button">Fermer</button>
+                <a class="h-9 px-space-lg rounded-xl bg-primary-fill text-on-primary font-label-lg text-label-lg hover:bg-primary-container transition-all flex items-center gap-1 shadow-sm" href="#" id="previewDownload">
+                    <span class="material-symbols-outlined text-[16px]">download</span>
+                    <span>Télécharger le PDF</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document request modal -->
+    <div class="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-50 hidden items-center justify-center p-space-lg" id="requestModal" data-modal>
+        <div class="w-full max-w-lg rounded-xl bg-surface-container-lowest p-space-xl shadow-xl flex flex-col gap-space-lg">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-space-xs">
+                    <span class="material-symbols-outlined text-primary text-[22px]">add_circle</span>
+                    <h3 class="font-headline-sm text-headline-sm text-on-surface">Demande de Document RH</h3>
+                </div>
+                <button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container hover:text-on-surface" data-close-modal="requestModal" type="button">
+                    <span class="material-symbols-outlined text-[18px]">close</span>
+                </button>
+            </div>
+            <form class="flex flex-col gap-space-md" method="POST" action="{{ route('collaborator.documents.request') }}" id="requestForm">
+                @csrf
+                <input type="hidden" name="form" value="document_request"/>
+                <div class="flex flex-col gap-space-xs">
+                    <label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider" for="request-type">Type de document *</label>
+                    <select class="h-10 px-space-md rounded-lg bg-surface-container-lowest border-0 ring-1 ring-outline-variant text-on-surface font-body-md text-body-md focus:ring-2 focus:ring-primary outline-none {{ $failedForm === 'document_request' && $errors->has('type') ? 'hrm-invalid' : '' }}" id="request-type" name="type" required>
+                        @foreach ($requestTypes as $value => $label)
+                            <option value="{{ $value }}" @selected(old('type') === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    @if ($failedForm === 'document_request') @error('type')<span class="font-label-sm text-label-sm text-error">{{ $message }}</span>@enderror @endif
+                </div>
+                <div class="flex flex-col gap-space-xs">
+                    <label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider" for="request-purpose">Motif / précisions</label>
+                    <textarea class="p-space-sm rounded-lg bg-surface-container-lowest border-0 ring-1 ring-outline-variant text-on-surface font-body-md text-body-md focus:ring-2 focus:ring-primary outline-none resize-none {{ $failedForm === 'document_request' && $errors->has('purpose') ? 'hrm-invalid' : '' }}" id="request-purpose" name="purpose" rows="3" maxlength="500" placeholder="Ex : dossier visa, crédit bancaire, changement d'adresse...">{{ old('purpose') }}</textarea>
+                    @if ($failedForm === 'document_request') @error('purpose')<span class="font-label-sm text-label-sm text-error">{{ $message }}</span>@enderror @endif
+                    <span class="font-label-sm text-[11px] text-on-surface-variant" id="request-purpose-hint">Obligatoire pour une déclaration de situation.</span>
+                </div>
+                <div class="flex items-center justify-end gap-space-sm pt-space-sm">
+                    <button class="h-9 px-space-lg rounded-xl bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors" data-close-modal="requestModal" type="button">Annuler</button>
+                    <button class="h-9 px-space-lg rounded-xl bg-primary-fill text-on-primary font-label-lg text-label-lg hover:bg-primary-container transition-all shadow-sm" type="submit">Envoyer la demande</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Profile modal -->
+    <div class="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-50 hidden items-center justify-center p-space-lg" id="updateModal" data-modal>
+        <div class="w-full max-w-lg rounded-xl bg-surface-container-lowest p-space-xl shadow-xl flex flex-col gap-space-lg max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-space-xs">
+                    <span class="material-symbols-outlined text-primary text-[22px]">manage_accounts</span>
+                    <h3 class="font-headline-sm text-headline-sm text-on-surface">Mise à jour du Dossier Collaborateur</h3>
+                </div>
+                <button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container hover:text-on-surface" data-close-modal="updateModal" type="button">
+                    <span class="material-symbols-outlined text-[18px]">close</span>
+                </button>
+            </div>
+            <form class="flex flex-col gap-space-md" method="POST" action="{{ route('collaborator.documents.profile') }}">
+                @csrf
+                @method('PATCH')
+                <input type="hidden" name="form" value="profile_update"/>
+                <div class="flex flex-col gap-space-xs">
+                    <label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider" for="profile-mobile">Téléphone personnel</label>
+                    <input class="h-10 px-space-md rounded-lg bg-surface-container-lowest border-0 ring-1 ring-outline-variant text-on-surface font-numeric-md text-numeric-md focus:ring-2 focus:ring-primary outline-none {{ $failedForm === 'profile_update' && $errors->has('mobile') ? 'hrm-invalid' : '' }}" id="profile-mobile" name="mobile" type="text" maxlength="30" value="{{ old('mobile', $employee->mobile) }}" placeholder="+216 ..."/>
+                    @if ($failedForm === 'profile_update') @error('mobile')<span class="font-label-sm text-label-sm text-error">{{ $message }}</span>@enderror @endif
+                </div>
+                <div class="flex flex-col gap-space-xs">
+                    <label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider" for="profile-emergency-name">Contact d'urgence (nom)</label>
+                    <input class="h-10 px-space-md rounded-lg bg-surface-container-lowest border-0 ring-1 ring-outline-variant text-on-surface font-body-md text-body-md focus:ring-2 focus:ring-primary outline-none {{ $failedForm === 'profile_update' && $errors->has('emergency_contact_name') ? 'hrm-invalid' : '' }}" id="profile-emergency-name" name="emergency_contact_name" type="text" maxlength="120" value="{{ old('emergency_contact_name', $employee->emergency_contact_name) }}"/>
+                    @if ($failedForm === 'profile_update') @error('emergency_contact_name')<span class="font-label-sm text-label-sm text-error">{{ $message }}</span>@enderror @endif
+                </div>
+                <div class="flex flex-col gap-space-xs">
+                    <label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider" for="profile-emergency-phone">Téléphone d'urgence</label>
+                    <input class="h-10 px-space-md rounded-lg bg-surface-container-lowest border-0 ring-1 ring-outline-variant text-on-surface font-numeric-md text-numeric-md focus:ring-2 focus:ring-primary outline-none {{ $failedForm === 'profile_update' && $errors->has('emergency_contact_phone') ? 'hrm-invalid' : '' }}" id="profile-emergency-phone" name="emergency_contact_phone" type="text" maxlength="30" value="{{ old('emergency_contact_phone', $employee->emergency_contact_phone) }}"/>
+                    @if ($failedForm === 'profile_update') @error('emergency_contact_phone')<span class="font-label-sm text-label-sm text-error">{{ $message }}</span>@enderror @endif
+                </div>
+                <div class="flex flex-col gap-space-xs">
+                    <label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider" for="profile-address">Adresse résidentielle</label>
+                    <input class="h-10 px-space-md rounded-lg bg-surface-container-lowest border-0 ring-1 ring-outline-variant text-on-surface font-body-md text-body-md focus:ring-2 focus:ring-primary outline-none {{ $failedForm === 'profile_update' && $errors->has('address') ? 'hrm-invalid' : '' }}" id="profile-address" name="address" type="text" maxlength="255" value="{{ old('address', $employee->address) }}"/>
+                    @if ($failedForm === 'profile_update') @error('address')<span class="font-label-sm text-label-sm text-error">{{ $message }}</span>@enderror @endif
+                </div>
+                <p class="font-label-sm text-[11px] text-on-surface-variant">
+                    Les autres informations (CIN, CNSS, poste, contrat) sont gérées exclusivement par le service RH.
+                </p>
+                <div class="flex items-center justify-end gap-space-sm pt-space-md">
+                    <button class="h-9 px-space-lg rounded-xl bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors" data-close-modal="updateModal" type="button">Annuler</button>
+                    <button class="h-9 px-space-lg rounded-xl bg-primary-fill text-on-primary font-label-lg text-label-lg hover:bg-primary-container transition-all shadow-sm" type="submit">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        (() => {
+            const container = document.getElementById('documentsContainer');
+            const searchInput = document.getElementById('docSearchInput');
+            const tabs = document.querySelectorAll('.vault-tab-btn');
+            const cards = () => document.querySelectorAll('.doc-card');
+
+            let activeCategory = 'all';
+
+            const applyFilters = () => {
+                const query = (searchInput?.value || '').toLowerCase().trim();
+                cards().forEach((card) => {
+                    const matchesCategory = activeCategory === 'all' || card.dataset.category === activeCategory;
+                    const matchesQuery = !query || (card.dataset.title || '').includes(query);
+                    card.classList.toggle('hidden', !(matchesCategory && matchesQuery));
+                });
+            };
+
+            tabs.forEach((tab) => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach((other) => {
+                        other.classList.remove('bg-surface-container-lowest', 'text-primary', 'shadow-sm', 'font-semibold');
+                        other.classList.add('text-on-surface-variant');
+                    });
+                    tab.classList.add('bg-surface-container-lowest', 'text-primary', 'shadow-sm', 'font-semibold');
+                    tab.classList.remove('text-on-surface-variant');
+                    activeCategory = tab.dataset.category;
+                    applyFilters();
+                });
+            });
+
+            searchInput?.addEventListener('input', applyFilters);
+
+            const layoutButtons = document.querySelectorAll('.layout-btn');
+            layoutButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    layoutButtons.forEach((other) => {
+                        other.classList.remove('bg-surface-container-lowest', 'text-primary', 'shadow-sm');
+                        other.classList.add('text-on-surface-variant');
+                    });
+                    button.classList.add('bg-surface-container-lowest', 'text-primary', 'shadow-sm');
+                    button.classList.remove('text-on-surface-variant');
+
+                    if (!container) return;
+                    if (button.dataset.layout === 'list') {
+                        container.className = 'flex flex-col gap-space-md';
+                    } else {
+                        container.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-lg';
+                    }
+                    applyFilters();
+                });
+            });
+
+            const openModal = (id) => {
+                const modal = document.getElementById(id);
+                if (!modal) return;
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            };
+            const closeModal = (id) => {
+                const modal = document.getElementById(id);
+                if (!modal) return;
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            };
+
+            @if ($errors->any() && in_array($failedForm, ['document_request', 'profile_update'], true))
+                openModal(@json($failedForm === 'document_request' ? 'requestModal' : 'updateModal'));
+            @endif
+
+            document.querySelectorAll('[data-open-modal]').forEach((trigger) => {
+                trigger.addEventListener('click', () => {
+                    if (trigger.dataset.requestType) {
+                        const select = document.getElementById('request-type');
+                        if (select) select.value = trigger.dataset.requestType;
+                        togglePurposeRequirement();
+                    }
+                    openModal(trigger.dataset.openModal);
+                });
+            });
+
+            document.querySelectorAll('[data-close-modal]').forEach((trigger) => {
+                trigger.addEventListener('click', () => closeModal(trigger.dataset.closeModal));
+            });
+
+            document.querySelectorAll('[data-modal]').forEach((modal) => {
+                modal.addEventListener('click', (event) => {
+                    if (event.target === modal) {
+                        modal.classList.add('hidden');
+                        modal.classList.remove('flex');
+                    }
+                });
+            });
+
+            document.querySelectorAll('[data-preview]').forEach((trigger) => {
+                trigger.addEventListener('click', () => {
+                    document.getElementById('previewTitle').textContent = trigger.dataset.previewTitle || 'Document';
+                    document.getElementById('previewMeta').textContent = trigger.dataset.previewMeta || '—';
+                    document.getElementById('previewDownload').href = trigger.dataset.previewUrl || '#';
+                    openModal('previewModal');
+                });
+            });
+
+            const requestType = document.getElementById('request-type');
+            const requestPurpose = document.getElementById('request-purpose');
+            const purposeHint = document.getElementById('request-purpose-hint');
+            const togglePurposeRequirement = () => {
+                if (!requestType || !requestPurpose) return;
+                const isDeclaration = requestType.value === 'declaration_situation';
+                requestPurpose.required = isDeclaration;
+                if (purposeHint) {
+                    purposeHint.textContent = isDeclaration
+                        ? 'Obligatoire : précisez la situation à déclarer.'
+                        : 'Facultatif, mais utile au traitement RH.';
+                }
+            };
+            requestType?.addEventListener('change', togglePurposeRequirement);
+            togglePurposeRequirement();
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    document.querySelectorAll('[data-modal]').forEach((modal) => {
+                        modal.classList.add('hidden');
+                        modal.classList.remove('flex');
+                    });
+                }
+            });
+
+            document.querySelectorAll('[data-modal] form').forEach((form) => {
+                form.addEventListener('submit', () => {
+                    const button = form.querySelector('button[type="submit"]');
+                    if (button) {
+                        button.disabled = true;
+                        button.classList.add('opacity-60', 'pointer-events-none');
+                    }
+                });
+            });
+        })();
+    </script>
 </x-collaborator-shell>

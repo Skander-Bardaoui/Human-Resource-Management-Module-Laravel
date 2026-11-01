@@ -52,12 +52,12 @@
             break;
         }
     }
-    $openDrawer = $isEditing || $errors->any() || $onboardValues !== null;
+    $openDrawer = $isEditing || $errors->any() || $onboardValues !== null || request()->boolean('new');
     $openView = $viewEmployee !== null && ! $openDrawer;
     $initialStep = $errors->any() ? $firstErrorStep : 1;
     $stepActiveClass = 'bg-primary-container text-on-primary shadow-xs';
     $stepIdleClass = 'text-on-surface-variant hover:bg-surface-container transition-colors';
-    $stepNumberActiveClass = 'bg-white text-primary';
+    $stepNumberActiveClass = 'bg-surface-container-lowest text-primary';
     $stepNumberIdleClass = 'bg-surface-container text-on-surface';
 @endphp
 <div class="flex flex-col w-full pb-margin">
@@ -66,6 +66,15 @@
 <span class="material-symbols-outlined text-body-lg shrink-0">check_circle</span>
 <span class="font-label-md text-label-md">{{ session('success') }}</span>
 <button class="ml-2 text-on-tertiary-fixed/70 hover:text-on-tertiary-fixed" type="button" onclick="this.parentElement.remove()" aria-label="Fermer">
+<span class="material-symbols-outlined text-body-md">close</span>
+</button>
+</div>
+@endif
+@if (session('error'))
+<div class="fixed top-20 right-6 z-[80] max-w-sm p-space-md rounded-xl bg-error-container text-on-error-container shadow-lg flex items-start gap-space-sm" id="flash-error-toast" role="alert">
+<span class="material-symbols-outlined text-body-lg shrink-0">error</span>
+<span class="font-label-md text-label-md">{{ session('error') }}</span>
+<button class="ml-2 text-on-error-container/70 hover:text-on-error-container" type="button" onclick="this.parentElement.remove()" aria-label="Fermer">
 <span class="material-symbols-outlined text-body-md">close</span>
 </button>
 </div>
@@ -241,6 +250,7 @@
 @php
     $statusMeta = $statusBadges[$employee->status] ?? $statusBadges['inactif'];
     $avatarClass = $avatarPalette[$employee->id % 4];
+    $portalAccount = $portalAccounts[mb_strtolower(trim((string) $employee->email))] ?? null;
 @endphp
 <tr class="h-16 hover:bg-surface-container-low/70 transition-colors group" data-employee-row>
 <td class="px-space-lg">
@@ -293,10 +303,18 @@ Date non renseignée
 </div>
 </td>
 <td class="px-space-md py-space-sm whitespace-nowrap">
+<div class="flex flex-col items-start gap-1">
 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full {{ $statusMeta['badge'] }} font-label-sm text-label-sm font-semibold">
 <span class="w-1.5 h-1.5 rounded-full {{ $statusMeta['dot'] }}"></span>
                   {{ $employee->statusLabel() }}
                 </span>
+@if ($portalAccount)
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full {{ $portalAccount->isActive() ? 'bg-tertiary-fixed/40 text-tertiary' : 'bg-error-container/50 text-error' }} font-label-sm text-label-sm font-semibold">
+<span class="material-symbols-outlined text-[14px]">{{ $portalAccount->isActive() ? 'verified_user' : 'lock' }}</span>
+                  Portail {{ $portalAccount->isActive() ? 'actif' : 'désactivé' }}
+                </span>
+@endif
+</div>
 </td>
 <td class="px-space-lg py-space-sm whitespace-nowrap text-right">
 <div class="flex items-center justify-end gap-1 text-on-surface-variant">
@@ -306,6 +324,15 @@ Date non renseignée
 <a class="p-1.5 rounded-lg hover:bg-surface-container hover:text-on-surface transition-colors" href="{{ $linkWith(['edit' => $employee->id]) }}" title="Modifier">
 <span class="material-symbols-outlined text-body-lg">edit</span>
 </a>
+@if ($portalAccount)
+<form class="inline-flex" data-access-toggle data-action="{{ $portalAccount->isActive() ? 'disable' : 'enable' }}" data-account-email="{{ $portalAccount->email }}" data-employee="{{ $employee->name }}" method="POST" action="{{ route('admin.employees.access', $employee) }}">
+@csrf
+@method('PATCH')
+<button class="p-1.5 rounded-lg hover:bg-surface-container transition-colors {{ $portalAccount->isActive() ? 'hover:text-error' : 'hover:text-tertiary' }}" title="{{ $portalAccount->isActive() ? 'Désactiver l\'accès portail' : 'Réactiver l\'accès portail' }}" type="submit">
+<span class="material-symbols-outlined text-body-lg">{{ $portalAccount->isActive() ? 'lock' : 'how_to_reg' }}</span>
+</button>
+</form>
+@endif
 <button class="row-menu-btn p-1.5 rounded-lg hover:bg-surface-container hover:text-on-surface transition-colors" data-cin-url="{{ $employee->cin_file_path ? route('admin.employees.cin', $employee) : '' }}" data-delete-form="delete-employee-{{ $employee->id }}" data-edit-url="{{ $linkWith(['edit' => $employee->id]) }}" data-name="{{ $employee->name }}" data-view-url="{{ $linkWith(['view' => $employee->id]) }}" title="Plus d'actions" type="button">
 <span class="material-symbols-outlined text-body-lg">more_vert</span>
 </button>
@@ -325,7 +352,7 @@ Date non renseignée
 </div>
 <p class="font-headline-sm text-headline-sm text-on-surface">Aucun collaborateur trouvé</p>
 <p class="font-body-sm text-body-sm text-on-surface-variant">Ajustez vos filtres ou ajoutez un nouveau profil au registre.</p>
-<a class="mt-2 h-9 px-space-lg rounded-xl bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md flex items-center gap-1 transition-colors" href="{{ route('admin.employees') }}">
+<a class="mt-2 h-9 px-space-lg rounded-xl bg-primary-fill hover:bg-primary-container text-on-primary font-label-md text-label-md flex items-center gap-1 transition-colors" href="{{ route('admin.employees') }}">
 <span class="material-symbols-outlined text-body-md">restart_alt</span>
 <span>Réinitialiser les filtres</span>
 </a>
@@ -343,6 +370,7 @@ Date non renseignée
 @php
     $statusMeta = $statusBadges[$employee->status] ?? $statusBadges['inactif'];
     $avatarClass = $avatarPalette[$employee->id % 4];
+    $portalAccount = $portalAccounts[mb_strtolower(trim((string) $employee->email))] ?? null;
 @endphp
 <div class="rounded-xl border border-surface-container-high bg-surface-container-low/30 p-space-md flex flex-col gap-space-md hover:shadow-md transition-shadow">
 <div class="flex items-start justify-between gap-space-sm">
@@ -382,6 +410,15 @@ Date non renseignée
 <a class="p-1.5 rounded-lg hover:bg-surface-container hover:text-on-surface transition-colors" href="{{ $linkWith(['edit' => $employee->id]) }}" title="Modifier">
 <span class="material-symbols-outlined text-body-lg">edit</span>
 </a>
+@if ($portalAccount)
+<form class="inline-flex" data-access-toggle data-action="{{ $portalAccount->isActive() ? 'disable' : 'enable' }}" data-account-email="{{ $portalAccount->email }}" data-employee="{{ $employee->name }}" method="POST" action="{{ route('admin.employees.access', $employee) }}">
+@csrf
+@method('PATCH')
+<button class="p-1.5 rounded-lg hover:bg-surface-container transition-colors {{ $portalAccount->isActive() ? 'hover:text-error' : 'hover:text-tertiary' }}" title="{{ $portalAccount->isActive() ? 'Désactiver l\'accès portail' : 'Réactiver l\'accès portail' }}" type="submit">
+<span class="material-symbols-outlined text-body-lg">{{ $portalAccount->isActive() ? 'lock' : 'how_to_reg' }}</span>
+</button>
+</form>
+@endif
 </div>
 </div>
 </div>
@@ -434,7 +471,7 @@ Date non renseignée
 @endif
 @for ($page = $startPage; $page <= $endPage; $page++)
 @if ($page === $currentPage)
-<span class="w-8 h-8 rounded-xl bg-primary text-on-primary font-label-md text-label-md font-semibold flex items-center justify-center">{{ $page }}</span>
+<span class="w-8 h-8 rounded-xl bg-primary-fill text-on-primary font-label-md text-label-md font-semibold flex items-center justify-center">{{ $page }}</span>
 @else
 <a class="w-8 h-8 rounded-xl hover:bg-surface-container text-on-surface font-label-md text-label-md flex items-center justify-center" href="{{ $employees->url($page) }}">{{ $page }}</a>
 @endif
@@ -487,7 +524,7 @@ Date non renseignée
 <!-- Slide-Over Multi-Step Modal (Add / Edit Employee) -->
 <div class="fixed inset-0 z-50 overflow-hidden flex justify-end transition-opacity duration-300 {{ $openDrawer ? '' : 'hidden' }}" data-close-url="{{ $linkWith([]) }}" data-initial-step="{{ $initialStep }}" data-is-editing="{{ $isEditing ? '1' : '0' }}" id="add-employee-modal">
 <!-- Overlay backdrop -->
-<div class="fixed inset-0 bg-inverse-surface/40 backdrop-blur-xs transition-opacity" id="modal-backdrop"></div>
+<div class="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity" id="modal-backdrop"></div>
 <!-- Slide-over Drawer Panel -->
 <div class="relative w-full max-w-2xl bg-surface-container-lowest shadow-2xl flex flex-col h-full z-10 overflow-hidden">
 <!-- Drawer Header -->
@@ -634,7 +671,7 @@ Date non renseignée
 </div>
 <div class="flex flex-col gap-space-xs">
 <label class="font-label-md text-label-md text-on-surface font-medium" for="emp-children">Nombre d'enfants à charge (Déduction IRPP)</label>
-<input class="h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-numeric-md text-numeric-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="emp-children" max="10" min="0" name="children" type="number" value="{{ old('children', $editEmployee?->children ?? 0) }}"/>
+<input class="h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-numeric-md text-numeric-md placeholder:text-on-surface-variant focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="emp-children" max="10" min="0" name="children" placeholder="Ex: 2" type="number" value="{{ old('children', $editEmployee?->children ?? 0) }}"/>
 @error('children')<span class="font-label-sm text-label-sm text-error">{{ $message }}</span>@enderror
 </div>
 </div>
@@ -789,17 +826,17 @@ Date non renseignée
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-space-md">
 <div class="flex flex-col gap-space-xs">
 <label class="font-label-md text-label-md text-on-surface font-medium" for="emp-leave-rights">Droits annuels</label>
-<input class="h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-numeric-md text-numeric-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="emp-leave-rights" max="365" min="0" name="leave_rights" type="number" value="{{ old('leave_rights', $editEmployee?->leave_rights ?? 30) }}"/>
+<input class="h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-numeric-md text-numeric-md placeholder:text-on-surface-variant focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="emp-leave-rights" max="365" min="0" name="leave_rights" placeholder="Ex: 30" type="number" value="{{ old('leave_rights', $editEmployee?->leave_rights ?? 30) }}"/>
 @error('leave_rights')<span class="font-label-sm text-label-sm text-error">{{ $message }}</span>@enderror
 </div>
 <div class="flex flex-col gap-space-xs">
 <label class="font-label-md text-label-md text-on-surface font-medium" for="emp-leave-token">Solde congés</label>
-<input class="h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-numeric-md text-numeric-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="emp-leave-token" max="365" min="0" name="token_leave_days" type="number" value="{{ old('token_leave_days', $editEmployee?->token_leave_days ?? 30) }}"/>
+<input class="h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-numeric-md text-numeric-md placeholder:text-on-surface-variant focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="emp-leave-token" max="365" min="0" name="token_leave_days" placeholder="Ex: 30" type="number" value="{{ old('token_leave_days', $editEmployee?->token_leave_days ?? 30) }}"/>
 @error('token_leave_days')<span class="font-label-sm text-label-sm text-error">{{ $message }}</span>@enderror
 </div>
 <div class="flex flex-col gap-space-xs">
 <label class="font-label-md text-label-md text-on-surface font-medium" for="emp-sick-token">Solde maladie</label>
-<input class="h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-numeric-md text-numeric-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="emp-sick-token" max="365" min="0" name="token_sick_leave_days" type="number" value="{{ old('token_sick_leave_days', $editEmployee?->token_sick_leave_days ?? 15) }}"/>
+<input class="h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-numeric-md text-numeric-md placeholder:text-on-surface-variant focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="emp-sick-token" max="365" min="0" name="token_sick_leave_days" placeholder="Ex: 15" type="number" value="{{ old('token_sick_leave_days', $editEmployee?->token_sick_leave_days ?? 15) }}"/>
 @error('token_sick_leave_days')<span class="font-label-sm text-label-sm text-error">{{ $message }}</span>@enderror
 </div>
 </div>
@@ -816,7 +853,7 @@ Date non renseignée
 <button class="h-10 px-space-lg rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-lg text-label-lg transition-colors" id="modal-back-btn" type="button">
           {{ $initialStep === 1 ? 'Annuler' : 'Précédent' }}
         </button>
-<button class="h-10 px-space-xl rounded-xl bg-primary hover:bg-primary-container text-on-primary font-label-lg text-label-lg shadow-md flex items-center gap-space-xs transition-all transform active:scale-95" id="modal-next-btn" type="button">
+<button class="h-10 px-space-xl rounded-xl bg-primary-fill hover:bg-primary-container text-on-primary font-label-lg text-label-lg shadow-md flex items-center gap-space-xs transition-all transform active:scale-95" id="modal-next-btn" type="button">
 <span id="modal-next-label">{{ $initialStep === 4 ? 'Enregistrer le collaborateur' : ($initialStep === 3 ? 'Suivant: Congés' : ($initialStep === 2 ? 'Suivant: Paie & CNSS' : 'Suivant: Contrat & Poste')) }}</span>
 <span class="material-symbols-outlined text-body-md" id="modal-next-icon">{{ $initialStep === 4 ? 'check' : 'arrow_forward' }}</span>
 </button>
@@ -827,10 +864,11 @@ Date non renseignée
 @php
     $viewStatusMeta = $statusBadges[$viewEmployee->status] ?? $statusBadges['inactif'];
     $viewAvatarClass = $avatarPalette[$viewEmployee->id % 4];
+    $viewAccount = $portalAccounts[mb_strtolower(trim((string) $viewEmployee->email))] ?? null;
 @endphp
 <!-- Slide-Over Employee Profile Drawer -->
 <div class="fixed inset-0 z-50 overflow-hidden flex justify-end transition-opacity duration-300 {{ $openView ? '' : 'hidden' }}" id="view-employee-modal">
-<div class="fixed inset-0 bg-inverse-surface/40 backdrop-blur-xs transition-opacity" id="view-modal-backdrop"></div>
+<div class="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity" id="view-modal-backdrop"></div>
 <div class="relative w-full max-w-2xl bg-surface-container-lowest shadow-2xl flex flex-col h-full z-10 overflow-hidden">
 <!-- Drawer Header -->
 <div class="p-space-xl bg-surface-container-low/60 flex items-start justify-between gap-space-md">
@@ -976,6 +1014,30 @@ Non renseignée
 </div>
 </div>
 </div>
+@if ($viewAccount)
+<div class="bg-surface-container-low/50 rounded-xl p-space-md flex flex-wrap items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-sm min-w-0">
+<span class="w-10 h-10 rounded-full {{ $viewAccount->isActive() ? 'bg-tertiary-fixed/40 text-tertiary' : 'bg-error-container/50 text-error' }} flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-body-lg">{{ $viewAccount->isActive() ? 'verified_user' : 'lock' }}</span>
+</span>
+<div class="flex flex-col min-w-0">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Accès au portail</span>
+<span class="font-body-md text-body-md text-on-surface truncate">{{ $viewAccount->email }}</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="px-2.5 py-1 rounded-full {{ $viewAccount->isActive() ? 'bg-tertiary-fixed/40 text-tertiary' : 'bg-error-container/50 text-error' }} font-label-sm text-label-sm font-semibold">{{ $viewAccount->isActive() ? 'Actif' : 'Désactivé' }}</span>
+<form data-access-toggle data-action="{{ $viewAccount->isActive() ? 'disable' : 'enable' }}" data-account-email="{{ $viewAccount->email }}" data-employee="{{ $viewEmployee->name }}" method="POST" action="{{ route('admin.employees.access', $viewEmployee) }}">
+@csrf
+@method('PATCH')
+<button class="h-9 px-space-md rounded-xl font-label-md text-label-md font-semibold flex items-center gap-1.5 transition-colors {{ $viewAccount->isActive() ? 'bg-error-container text-on-error-container hover:bg-error hover:text-on-error' : 'bg-primary-fill text-on-primary hover:bg-primary-container' }}" type="submit">
+<span class="material-symbols-outlined text-body-md">{{ $viewAccount->isActive() ? 'lock' : 'how_to_reg' }}</span>
+<span>{{ $viewAccount->isActive() ? 'Désactiver' : 'Réactiver' }} l'accès</span>
+</button>
+</form>
+</div>
+</div>
+@endif
 @if ($viewEmployee->cin_file_path)
 <div class="rounded-xl p-space-md bg-surface-container-low flex items-center justify-between">
 <div class="flex items-center gap-space-sm min-w-0">
@@ -1006,7 +1068,7 @@ Non renseignée
 <button class="h-10 px-space-lg rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-lg text-label-lg transition-colors" id="cancel-view-modal-btn" type="button">
           Fermer
         </button>
-<a class="h-10 px-space-xl rounded-xl bg-primary hover:bg-primary-container text-on-primary font-label-lg text-label-lg shadow-md flex items-center gap-space-xs transition-all transform active:scale-95" href="{{ $linkWith(['edit' => $viewEmployee->id]) }}">
+<a class="h-10 px-space-xl rounded-xl bg-primary-fill hover:bg-primary-container text-on-primary font-label-lg text-label-lg shadow-md flex items-center gap-space-xs transition-all transform active:scale-95" href="{{ $linkWith(['edit' => $viewEmployee->id]) }}">
 <span class="material-symbols-outlined text-body-md">edit</span>
 <span>Modifier le profil</span>
 </a>
@@ -1014,6 +1076,7 @@ Non renseignée
 </div>
 </div>
 @endif
+@include('partials.access-toggle-dialog')
 <!-- Inline UI Interactions Script -->
 <script>
     (function() {
@@ -1059,7 +1122,7 @@ Non renseignée
           trigger.classList.toggle('transition-colors', !isActive);
           const number = trigger.querySelector('.js-step-number');
           if (number) {
-            number.classList.toggle('bg-white', isActive);
+            number.classList.toggle('bg-surface-container-lowest', isActive);
             number.classList.toggle('text-primary', isActive);
             number.classList.toggle('bg-surface-container', !isActive);
             number.classList.toggle('text-on-surface', !isActive);
@@ -1102,6 +1165,11 @@ Non renseignée
         drawer.classList.add('hidden');
         drawer.classList.remove('flex');
         lockScroll(false);
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('new')) {
+          url.searchParams.delete('new');
+          window.history.replaceState({}, '', url);
+        }
       }
 
       function closeViewModal() {

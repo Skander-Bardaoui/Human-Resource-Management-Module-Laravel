@@ -57,7 +57,10 @@ class AuthenticateWithTokens
             return null;
         }
 
-        return User::find($claims['sub']);
+        return User::query()
+            ->whereKey($claims['sub'])
+            ->where('is_active', true)
+            ->first();
     }
 
     private function refresh(Request $request): ?array

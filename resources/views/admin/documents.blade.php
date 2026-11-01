@@ -2,17 +2,19 @@
 <div class="flex flex-col w-full pb-margin">
 
 @if (session('success'))
-<div class="mb-space-md p-space-md rounded-xl bg-[#ECFDF5] text-[#065F46] font-label-lg text-label-lg flex items-center gap-space-sm shadow-sm">
+<div class="mb-space-md p-space-md rounded-xl bg-[#ECFDF5] text-[#065F46] dark:bg-tertiary/15 dark:text-tertiary-fixed-dim font-label-lg text-label-lg flex items-center gap-space-sm shadow-sm">
     <span class="material-symbols-outlined text-body-lg">check_circle</span>
     <span>{{ session('success') }}</span>
 </div>
 @endif
 @if (session('error'))
-<div class="mb-space-md p-space-md rounded-xl bg-[#FFFBEB] text-[#92400E] font-label-lg text-label-lg flex items-center gap-space-sm shadow-sm">
+<div class="mb-space-md p-space-md rounded-xl bg-[#FFFBEB] text-[#92400E] dark:bg-[#3f3113] dark:text-[#ffd48a] font-label-lg text-label-lg flex items-center gap-space-sm shadow-sm">
     <span class="material-symbols-outlined text-body-lg">error</span>
     <span>{{ session('error') }}</span>
 </div>
 @endif
+
+@include('admin.partials.validation-errors')
 
 <!-- Breadcrumb & Top Bar -->
 <div class="flex flex-col md:flex-row md:items-center justify-between gap-space-md mb-space-lg">
@@ -30,7 +32,7 @@
 <span class="material-symbols-outlined text-body-lg">folder_zip</span>
 <span>Télécharger la sélection (ZIP)</span>
 </button>
-<button class="h-10 px-space-lg rounded-xl bg-primary-container text-on-primary hover:bg-primary shadow-sm hover:shadow-md transition-all flex items-center gap-space-xs font-label-lg text-label-lg active:scale-95" type="button" onclick="openModal('upload-modal')">
+<button class="h-10 px-space-lg rounded-xl bg-primary-container text-on-primary hover:bg-primary-fill shadow-sm hover:shadow-md transition-all flex items-center gap-space-xs font-label-lg text-label-lg active:scale-95" type="button" onclick="openModal('upload-modal')">
 <span class="material-symbols-outlined text-body-lg">upload_file</span>
 <span>+ Téléverser un Document</span>
 </button>
@@ -186,10 +188,10 @@ $categoryIcons = [
     'attestations' => ['assignment', 'bg-surface-container text-secondary'],
 ];
 $statusPills = [
-    'actif' => ['bg-[#ECFDF5] text-[#065F46]', 'bg-[#10B981]'],
-    'conforme' => ['bg-[#ECFDF5] text-[#065F46]', 'bg-[#10B981]'],
-    'en_attente_signature' => ['bg-[#FFFBEB] text-[#92400E]', 'bg-[#F59E0B]'],
-    'cloture' => ['bg-[#F1F5F9] text-[#475569]', 'bg-[#64748B]'],
+    'actif' => ['bg-[#ECFDF5] text-[#065F46] dark:bg-tertiary/15 dark:text-tertiary-fixed-dim', 'bg-[#10B981] dark:bg-tertiary'],
+    'conforme' => ['bg-[#ECFDF5] text-[#065F46] dark:bg-tertiary/15 dark:text-tertiary-fixed-dim', 'bg-[#10B981] dark:bg-tertiary'],
+    'en_attente_signature' => ['bg-[#FFFBEB] text-[#92400E] dark:bg-[#3f3113] dark:text-[#ffd48a]', 'bg-[#F59E0B] dark:bg-[#ffb340]'],
+    'cloture' => ['bg-[#F1F5F9] text-[#475569] dark:bg-surface-container-high dark:text-on-surface-variant', 'bg-[#64748B] dark:bg-outline'],
 ];
 @endphp
 
@@ -198,7 +200,7 @@ $statusPills = [
 @forelse ($documents as $doc)
 @php
     [$icon, $iconClasses] = $categoryIcons[$doc->category] ?? ['description', 'bg-surface-container text-on-surface-variant'];
-    [$pillClasses, $dotClasses] = $statusPills[$doc->status] ?? ['bg-[#F1F5F9] text-[#475569]', 'bg-[#64748B]'];
+    [$pillClasses, $dotClasses] = $statusPills[$doc->status] ?? ['bg-[#F1F5F9] text-[#475569] dark:bg-surface-container-high dark:text-on-surface-variant', 'bg-[#64748B] dark:bg-outline'];
     $sizeLabel = $doc->size >= 1048576
         ? number_format($doc->size / 1048576, 1, ',', ' ') . ' Mo'
         : max(1, (int) round($doc->size / 1024)) . ' Ko';
@@ -301,7 +303,7 @@ $statusPills = [
 @forelse ($documents as $doc)
 @php
     [$icon, $iconClasses] = $categoryIcons[$doc->category] ?? ['description', 'bg-surface-container text-on-surface-variant'];
-    [$pillClasses, $dotClasses] = $statusPills[$doc->status] ?? ['bg-[#F1F5F9] text-[#475569]', 'bg-[#64748B]'];
+    [$pillClasses, $dotClasses] = $statusPills[$doc->status] ?? ['bg-[#F1F5F9] text-[#475569] dark:bg-surface-container-high dark:text-on-surface-variant', 'bg-[#64748B] dark:bg-outline'];
     $sizeLabel = $doc->size >= 1048576
         ? number_format($doc->size / 1048576, 1, ',', ' ') . ' Mo'
         : max(1, (int) round($doc->size / 1024)) . ' Ko';
@@ -400,122 +402,162 @@ $statusPills = [
 </div>
 </div>
 
-<!-- ==================== MODAL: Téléverser ==================== -->
-<div class="hidden fixed inset-0 z-50 items-center justify-center p-gutter" id="upload-modal">
-<div class="absolute inset-0 bg-black/40" onclick="closeModal('upload-modal')"></div>
-<div class="relative bg-surface-container-lowest rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
-    <div class="p-space-lg border-b border-surface-container flex items-center justify-between sticky top-0 bg-surface-container-lowest">
-        <h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">Téléverser des Documents</h2>
-        <button class="w-8 h-8 rounded-lg hover:bg-surface-container flex items-center justify-center text-on-surface-variant" type="button" onclick="closeModal('upload-modal')">
-            <span class="material-symbols-outlined text-body-lg">close</span>
+<!-- ==================== DRAWER: Téléverser ==================== -->
+<div class="hidden fixed inset-0 z-50 overflow-hidden justify-end" data-quick-create="{{ request()->boolean('new') ? '1' : '0' }}" id="upload-modal">
+<div class="absolute inset-0 bg-black/60 backdrop-blur-xs" onclick="closeModal('upload-modal')"></div>
+<div class="relative w-full max-w-2xl bg-surface-container-lowest shadow-2xl flex flex-col h-full z-10 overflow-hidden">
+    <div class="p-space-xl bg-surface-container-low/60 flex items-start justify-between gap-space-md">
+        <div class="flex items-center gap-space-md">
+            <div class="w-12 h-12 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-sm shrink-0">
+                <span class="material-symbols-outlined text-headline-lg">upload_file</span>
+            </div>
+            <div class="flex flex-col">
+                <h2 class="font-headline-md text-headline-md text-on-surface tracking-tight">Téléverser des Documents</h2>
+                <p class="font-body-sm text-body-sm text-on-surface-variant">Ajoutez des fichiers au coffre-fort documentaire</p>
+            </div>
+        </div>
+        <button aria-label="Fermer" class="w-9 h-9 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors shrink-0" type="button" onclick="closeModal('upload-modal')">
+            <span class="material-symbols-outlined text-headline-sm">close</span>
         </button>
     </div>
-    <form method="POST" action="{{ route('admin.documents.store') }}" enctype="multipart/form-data" class="p-space-lg flex flex-col gap-space-md">
+    <form class="flex-1 overflow-y-auto p-space-xl flex flex-col gap-space-md" id="upload-form" method="POST" action="{{ route('admin.documents.store') }}" enctype="multipart/form-data">
         @csrf
-        <div>
-            <label class="font-label-md text-label-md text-on-surface">Fichiers * (PDF, PNG, JPG, JPEG, DOCX — 25 Mo max)</label>
-            <input class="mt-1 w-full font-body-md text-body-md text-on-surface" id="upload-files-input" name="files[]" type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" multiple required/>
+        <div class="flex flex-col gap-space-xs">
+            <label class="font-label-md text-label-md text-on-surface font-medium" for="upload-files-input">Fichiers <span class="text-error">*</span> <span class="font-body-sm text-body-sm text-on-surface-variant">(PDF, PNG, JPG, JPEG, DOCX — 25 Mo max)</span></label>
+            <input class="w-full px-3 py-2 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md ring-1 ring-outline-variant focus:outline-none focus:ring-2 focus:ring-primary transition-all file:mr-3 file:rounded-lg file:border-0 file:bg-surface-container file:px-3 file:py-1.5 file:font-label-md file:text-label-md file:text-on-surface hover:file:bg-surface-container-high" id="upload-files-input" name="files[]" type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" multiple required/>
         </div>
-        <div>
-            <label class="font-label-md text-label-md text-on-surface">Collaborateur associé</label>
-            <select class="mt-1 w-full h-10 px-3 rounded-lg bg-surface-container-low focus:outline-none focus:bg-surface-container font-body-md text-body-md text-on-surface" name="employee_id">
-                <option value="">— Non rattaché —</option>
-                @foreach ($employees as $employee)
-                <option value="{{ $employee->id }}">{{ $employee->name }}{{ $employee->cin ? ' (' . $employee->cin . ')' : '' }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div>
-            <label class="font-label-md text-label-md text-on-surface">Catégorie *</label>
-            <select class="mt-1 w-full h-10 px-3 rounded-lg bg-surface-container-low focus:outline-none focus:bg-surface-container font-body-md text-body-md text-on-surface" name="category">
-                @foreach (App\Models\Document::CATEGORIES as $key => $label)
-                <option value="{{ $key }}">{{ $label }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
-            <div>
-                <label class="font-label-md text-label-md text-on-surface">Statut *</label>
-                <select class="mt-1 w-full h-10 px-3 rounded-lg bg-surface-container-low focus:outline-none focus:bg-surface-container font-body-md text-body-md text-on-surface" name="status">
-                    @foreach (App\Models\Document::STATUSES as $key => $label)
-                    <option value="{{ $key }}">{{ $label }}</option>
+        <div class="flex flex-col gap-space-xs">
+            <label class="font-label-md text-label-md text-on-surface font-medium" for="upload-employee">Collaborateur associé</label>
+            <div class="relative">
+                <select class="w-full appearance-none h-10 pl-3 pr-8 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all cursor-pointer" id="upload-employee" name="employee_id">
+                    <option value="">— Non rattaché —</option>
+                    @foreach ($employees as $employee)
+                    <option value="{{ $employee->id }}">{{ $employee->name }}{{ $employee->cin ? ' (' . $employee->cin . ')' : '' }}</option>
                     @endforeach
                 </select>
-            </div>
-            <div>
-                <label class="font-label-md text-label-md text-on-surface">Date d'expiration</label>
-                <input class="mt-1 w-full h-10 px-3 rounded-lg bg-surface-container-low focus:outline-none focus:bg-surface-container font-body-md text-body-md text-on-surface" name="expires_at" type="date"/>
+                <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-body-md">expand_more</span>
             </div>
         </div>
-        <div>
-            <label class="font-label-md text-label-md text-on-surface">Notes</label>
-            <textarea class="mt-1 w-full px-3 py-2 rounded-lg bg-surface-container-low focus:outline-none focus:bg-surface-container font-body-md text-body-md text-on-surface" name="notes" rows="2"></textarea>
-        </div>
-        <div class="flex justify-end gap-space-sm pt-space-xs">
-            <button class="h-10 px-space-lg rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-lg text-label-lg transition-colors" type="button" onclick="closeModal('upload-modal')">Annuler</button>
-            <button class="h-10 px-space-lg rounded-xl bg-primary-container hover:bg-primary text-on-primary font-label-lg text-label-lg transition-colors" type="submit">Téléverser</button>
-        </div>
-    </form>
-</div>
-</div>
-
-<!-- ==================== MODAL: Modifier métadonnées ==================== -->
-<div class="hidden fixed inset-0 z-50 items-center justify-center p-gutter" id="edit-modal">
-<div class="absolute inset-0 bg-black/40" onclick="closeModal('edit-modal')"></div>
-<div class="relative bg-surface-container-lowest rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
-    <div class="p-space-lg border-b border-surface-container flex items-center justify-between sticky top-0 bg-surface-container-lowest">
-        <h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">Modifier le Document</h2>
-        <button class="w-8 h-8 rounded-lg hover:bg-surface-container flex items-center justify-center text-on-surface-variant" type="button" onclick="closeModal('edit-modal')">
-            <span class="material-symbols-outlined text-body-lg">close</span>
-        </button>
-    </div>
-    <form method="POST" action="{{ route('admin.documents.update', '__ID__') }}" id="edit-form" class="p-space-lg flex flex-col gap-space-md">
-        @csrf
-        <input type="hidden" name="_method" value="PUT"/>
-        <div>
-            <label class="font-label-md text-label-md text-on-surface">Libellé du document *</label>
-            <input class="mt-1 w-full h-10 px-3 rounded-lg bg-surface-container-low focus:outline-none focus:bg-surface-container font-body-md text-body-md text-on-surface" name="name" required/>
-        </div>
-        <div>
-            <label class="font-label-md text-label-md text-on-surface">Collaborateur associé</label>
-            <select class="mt-1 w-full h-10 px-3 rounded-lg bg-surface-container-low focus:outline-none focus:bg-surface-container font-body-md text-body-md text-on-surface" name="employee_id">
-                <option value="">— Non rattaché —</option>
-                @foreach ($employees as $employee)
-                <option value="{{ $employee->id }}">{{ $employee->name }}{{ $employee->cin ? ' (' . $employee->cin . ')' : '' }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
-            <div>
-                <label class="font-label-md text-label-md text-on-surface">Catégorie *</label>
-                <select class="mt-1 w-full h-10 px-3 rounded-lg bg-surface-container-low focus:outline-none focus:bg-surface-container font-body-md text-body-md text-on-surface" name="category">
+        <div class="flex flex-col gap-space-xs">
+            <label class="font-label-md text-label-md text-on-surface font-medium" for="upload-category">Catégorie <span class="text-error">*</span></label>
+            <div class="relative">
+                <select class="w-full appearance-none h-10 pl-3 pr-8 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all cursor-pointer" id="upload-category" name="category">
                     @foreach (App\Models\Document::CATEGORIES as $key => $label)
                     <option value="{{ $key }}">{{ $label }}</option>
                     @endforeach
                 </select>
-            </div>
-            <div>
-                <label class="font-label-md text-label-md text-on-surface">Statut *</label>
-                <select class="mt-1 w-full h-10 px-3 rounded-lg bg-surface-container-low focus:outline-none focus:bg-surface-container font-body-md text-body-md text-on-surface" name="status">
-                    @foreach (App\Models\Document::STATUSES as $key => $label)
-                    <option value="{{ $key }}">{{ $label }}</option>
-                    @endforeach
-                </select>
+                <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-body-md">expand_more</span>
             </div>
         </div>
-        <div>
-            <label class="font-label-md text-label-md text-on-surface">Date d'expiration</label>
-            <input class="mt-1 w-full h-10 px-3 rounded-lg bg-surface-container-low focus:outline-none focus:bg-surface-container font-body-md text-body-md text-on-surface" name="expires_at" type="date"/>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+            <div class="flex flex-col gap-space-xs">
+                <label class="font-label-md text-label-md text-on-surface font-medium" for="upload-status">Statut <span class="text-error">*</span></label>
+                <div class="relative">
+                    <select class="w-full appearance-none h-10 pl-3 pr-8 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all cursor-pointer" id="upload-status" name="status">
+                        @foreach (App\Models\Document::STATUSES as $key => $label)
+                        <option value="{{ $key }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-body-md">expand_more</span>
+                </div>
+            </div>
+            <div class="flex flex-col gap-space-xs">
+                <label class="font-label-md text-label-md text-on-surface font-medium" for="upload-expires">Date d'expiration</label>
+                <input class="w-full h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="upload-expires" name="expires_at" type="date"/>
+            </div>
         </div>
-        <div>
-            <label class="font-label-md text-label-md text-on-surface">Notes</label>
-            <textarea class="mt-1 w-full px-3 py-2 rounded-lg bg-surface-container-low focus:outline-none focus:bg-surface-container font-body-md text-body-md text-on-surface" name="notes" rows="2"></textarea>
-        </div>
-        <div class="flex justify-end gap-space-sm pt-space-xs">
-            <button class="h-10 px-space-lg rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-lg text-label-lg transition-colors" type="button" onclick="closeModal('edit-modal')">Annuler</button>
-            <button class="h-10 px-space-lg rounded-xl bg-primary-container hover:bg-primary text-on-primary font-label-lg text-label-lg transition-colors" type="submit">Enregistrer</button>
+        <div class="flex flex-col gap-space-xs">
+            <label class="font-label-md text-label-md text-on-surface font-medium" for="upload-notes">Notes</label>
+            <textarea class="w-full min-h-[96px] px-3 py-2 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md placeholder:text-on-surface-variant focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all resize-y" id="upload-notes" name="notes" placeholder="Ex: CIN scannée recto/verso, signature légalisée le 12/09/2025..." rows="2"></textarea>
         </div>
     </form>
+    <div class="p-space-lg bg-surface-container-lowest shadow-[0_-4px_12px_rgba(0,0,0,0.03)] flex items-center justify-between gap-space-sm">
+        <button class="h-10 px-space-lg rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-lg text-label-lg transition-colors" type="button" onclick="closeModal('upload-modal')">Annuler</button>
+        <button class="h-10 px-space-xl rounded-xl bg-primary-fill hover:bg-primary-container text-on-primary font-label-lg text-label-lg shadow-md flex items-center gap-space-xs transition-all transform active:scale-95" type="submit" form="upload-form">
+            <span class="material-symbols-outlined text-body-md">upload</span>
+            <span>Téléverser</span>
+        </button>
+    </div>
+</div>
+</div>
+
+<!-- ==================== DRAWER: Modifier métadonnées ==================== -->
+<div class="hidden fixed inset-0 z-50 overflow-hidden justify-end" id="edit-modal">
+<div class="absolute inset-0 bg-black/60 backdrop-blur-xs" onclick="closeModal('edit-modal')"></div>
+<div class="relative w-full max-w-2xl bg-surface-container-lowest shadow-2xl flex flex-col h-full z-10 overflow-hidden">
+    <div class="p-space-xl bg-surface-container-low/60 flex items-start justify-between gap-space-md">
+        <div class="flex items-center gap-space-md">
+            <div class="w-12 h-12 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-sm shrink-0">
+                <span class="material-symbols-outlined text-headline-lg">edit_document</span>
+            </div>
+            <div class="flex flex-col">
+                <h2 class="font-headline-md text-headline-md text-on-surface tracking-tight">Modifier le Document</h2>
+                <p class="font-body-sm text-body-sm text-on-surface-variant">Mettez à jour les métadonnées du fichier</p>
+            </div>
+        </div>
+        <button aria-label="Fermer" class="w-9 h-9 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors shrink-0" type="button" onclick="closeModal('edit-modal')">
+            <span class="material-symbols-outlined text-headline-sm">close</span>
+        </button>
+    </div>
+    <form method="POST" action="{{ route('admin.documents.update', '__ID__') }}" id="edit-form" class="flex-1 overflow-y-auto p-space-xl flex flex-col gap-space-md">
+        @csrf
+        <input type="hidden" name="_method" value="PUT"/>
+        <div class="flex flex-col gap-space-xs">
+            <label class="font-label-md text-label-md text-on-surface font-medium" for="edit-name">Libellé du document <span class="text-error">*</span></label>
+            <input class="w-full h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md placeholder:text-on-surface-variant focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="edit-name" name="name" placeholder="Ex: Contrat CDI — Amira Bouazizi" required/>
+        </div>
+        <div class="flex flex-col gap-space-xs">
+            <label class="font-label-md text-label-md text-on-surface font-medium" for="edit-employee">Collaborateur associé</label>
+            <div class="relative">
+                <select class="w-full appearance-none h-10 pl-3 pr-8 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all cursor-pointer" id="edit-employee" name="employee_id">
+                    <option value="">— Non rattaché —</option>
+                    @foreach ($employees as $employee)
+                    <option value="{{ $employee->id }}">{{ $employee->name }}{{ $employee->cin ? ' (' . $employee->cin . ')' : '' }}</option>
+                    @endforeach
+                </select>
+                <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-body-md">expand_more</span>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+            <div class="flex flex-col gap-space-xs">
+                <label class="font-label-md text-label-md text-on-surface font-medium" for="edit-category">Catégorie <span class="text-error">*</span></label>
+                <div class="relative">
+                    <select class="w-full appearance-none h-10 pl-3 pr-8 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all cursor-pointer" id="edit-category" name="category">
+                        @foreach (App\Models\Document::CATEGORIES as $key => $label)
+                        <option value="{{ $key }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-body-md">expand_more</span>
+                </div>
+            </div>
+            <div class="flex flex-col gap-space-xs">
+                <label class="font-label-md text-label-md text-on-surface font-medium" for="edit-status">Statut <span class="text-error">*</span></label>
+                <div class="relative">
+                    <select class="w-full appearance-none h-10 pl-3 pr-8 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all cursor-pointer" id="edit-status" name="status">
+                        @foreach (App\Models\Document::STATUSES as $key => $label)
+                        <option value="{{ $key }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-body-md">expand_more</span>
+                </div>
+            </div>
+        </div>
+        <div class="flex flex-col gap-space-xs">
+            <label class="font-label-md text-label-md text-on-surface font-medium" for="edit-expires">Date d'expiration</label>
+            <input class="w-full h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="edit-expires" name="expires_at" type="date"/>
+        </div>
+        <div class="flex flex-col gap-space-xs">
+            <label class="font-label-md text-label-md text-on-surface font-medium" for="edit-notes">Notes</label>
+            <textarea class="w-full min-h-[96px] px-3 py-2 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md placeholder:text-on-surface-variant focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all resize-y" id="edit-notes" name="notes" placeholder="Ex: Renouvelé le 01/10/2025, valable jusqu'au 30/09/2026..." rows="2"></textarea>
+        </div>
+    </form>
+    <div class="p-space-lg bg-surface-container-lowest shadow-[0_-4px_12px_rgba(0,0,0,0.03)] flex items-center justify-between gap-space-sm">
+        <button class="h-10 px-space-lg rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-lg text-label-lg transition-colors" type="button" onclick="closeModal('edit-modal')">Annuler</button>
+        <button class="h-10 px-space-xl rounded-xl bg-primary-fill hover:bg-primary-container text-on-primary font-label-lg text-label-lg shadow-md flex items-center gap-space-xs transition-all transform active:scale-95" type="submit" form="edit-form">
+            <span class="material-symbols-outlined text-body-md">check</span>
+            <span>Enregistrer</span>
+        </button>
+    </div>
 </div>
 </div>
 
@@ -542,10 +584,12 @@ $statusPills = [
   function openModal(id) {
     document.getElementById(id).classList.remove('hidden');
     document.getElementById(id).classList.add('flex');
+    document.body.style.overflow = 'hidden';
   }
   function closeModal(id) {
     document.getElementById(id).classList.add('hidden');
     document.getElementById(id).classList.remove('flex');
+    document.body.style.overflow = '';
   }
 
   function openEditModal(button) {
@@ -588,6 +632,12 @@ $statusPills = [
     uploadInput.addEventListener('change', function () {
       if (this.files.length) openModal('upload-modal');
     });
+  }
+
+  // Ouverture rapide depuis la navbar
+  var uploadModal = document.getElementById('upload-modal');
+  if (uploadModal && uploadModal.dataset.quickCreate === '1') {
+    openModal('upload-modal');
   }
 </script>
 </x-admin-shell>

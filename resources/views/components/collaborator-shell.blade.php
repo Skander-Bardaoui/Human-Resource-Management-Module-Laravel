@@ -2,10 +2,13 @@
 
 @php
     $user = auth()->user();
+    $currentEmployee = $currentEmployee ?? null;
+    $collaboratorNotifications = $collaboratorNotifications ?? [];
+    $collaboratorNotificationCount = $collaboratorNotificationCount ?? count($collaboratorNotifications);
     $nameParts = preg_split('/\s+/', trim($user->name));
     $firstName = $nameParts[0] ?? $user->name;
     $initials = strtoupper(substr($nameParts[0] ?? '', 0, 1) . substr($nameParts[1] ?? '', 0, 1));
-    $matricule = 'MAT-' . str_pad($user->id, 4, '0', STR_PAD_LEFT);
+    $matricule = $currentEmployee?->matricule() ?? \App\Support\CollaboratorContext::matricule(null, $user);
 
     $navBase = 'flex items-center gap-space-sm px-space-md py-space-sm rounded-xl font-label-lg text-label-lg transition-all';
     $navIdle = 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface';
@@ -19,6 +22,20 @@
         ['key' => 'documents', 'label' => 'Mes Documents', 'icon' => 'folder_shared', 'route' => 'collaborator.documents'],
         ['key' => 'profile', 'label' => 'Mon Profil & Carrière', 'icon' => 'badge', 'route' => 'profile.edit'],
     ];
+
+    $searchPages = collect($links)->map(fn ($link) => [
+        'label' => $link['label'],
+        'icon' => $link['icon'],
+        'url' => route($link['route']),
+        'keywords' => match ($link['key']) {
+            'conges' => 'conge congé solde absence demande',
+            'payslips' => 'paie fiche salaire bulletin',
+            'attendance' => 'pointage presence présence heures',
+            'documents' => 'document fichier contrat attestation',
+            'profile' => 'profil carriere carrière cv',
+            default => 'tableau de bord accueil',
+        },
+    ])->values();
 @endphp
 
 <!DOCTYPE html>
@@ -27,6 +44,7 @@
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <meta content="{{ csrf_token() }}" name="csrf-token"/>
+    <meta content="light dark" name="color-scheme"/>
     <title>{{ $title }} — HRM Pro</title>
     <link href="https://fonts.googleapis.com" rel="preconnect"/>
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -44,128 +62,36 @@
         ::-webkit-scrollbar {
             display: none;
         }
+        .hrm-invalid {
+            box-shadow: 0 0 0 2px rgb(var(--c-error)) !important;
+        }
     </style>
+    @include('components.theme-tokens', ['section' => 'bootstrap'])
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "on-tertiary-fixed-variant": "#005236",
-                        "on-secondary-fixed": "#0b1c30",
-                        "outline-variant": "#c7c4d8",
-                        "on-secondary": "#ffffff",
-                        "on-error-container": "#93000a",
-                        "on-secondary-container": "#54647a",
-                        "inverse-on-surface": "#eef0ff",
-                        "on-secondary-fixed-variant": "#38485d",
-                        "tertiary": "#005338",
-                        "surface-dim": "#d2d9f4",
-                        "secondary-container": "#d0e1fb",
-                        "on-primary-fixed-variant": "#3323cc",
-                        "secondary-fixed": "#d3e4fe",
-                        "surface-bright": "#faf8ff",
-                        "on-tertiary-container": "#67f4b7",
-                        "on-primary-fixed": "#0f0069",
-                        "error": "#ba1a1a",
-                        "surface-variant": "#dae2fd",
-                        "on-primary-container": "#dad7ff",
-                        "tertiary-fixed": "#6ffbbe",
-                        "primary-fixed": "#e2dfff",
-                        "surface": "#faf8ff",
-                        "on-error": "#ffffff",
-                        "inverse-surface": "#283044",
-                        "on-surface": "#131b2e",
-                        "tertiary-container": "#006e4b",
-                        "inverse-primary": "#c3c0ff",
-                        "on-surface-variant": "#464555",
-                        "background": "#faf8ff",
-                        "outline": "#777587",
-                        "primary-container": "#4f46e5",
-                        "on-primary": "#ffffff",
-                        "surface-container": "#eaedff",
-                        "secondary": "#505f76",
-                        "surface-container-lowest": "#ffffff",
-                        "on-tertiary": "#ffffff",
-                        "on-tertiary-fixed": "#002113",
-                        "surface-container-highest": "#dae2fd",
-                        "primary-fixed-dim": "#c3c0ff",
-                        "surface-tint": "#4d44e3",
-                        "tertiary-fixed-dim": "#4edea3",
-                        "surface-container-high": "#e2e7ff",
-                        "surface-container-low": "#f2f3ff",
-                        "primary": "#3525cd",
-                        "on-background": "#131b2e",
-                        "error-container": "#ffdad6",
-                        "secondary-fixed-dim": "#b7c8e1"
-                    },
-                    borderRadius: {
-                        "DEFAULT": "0.125rem",
-                        "lg": "0.25rem",
-                        "xl": "0.5rem",
-                        "full": "0.75rem"
-                    },
-                    spacing: {
-                        "gutter": "1.25rem",
-                        "space-md": "0.75rem",
-                        "gutter-mobile": "0.75rem",
-                        "space-xl": "1.5rem",
-                        "space-xs": "0.25rem",
-                        "margin-mobile": "1rem",
-                        "space-lg": "1rem",
-                        "space-sm": "0.5rem",
-                        "margin": "2rem"
-                    },
-                    fontFamily: {
-                        "display-lg": ["Inter"],
-                        "headline-sm": ["Inter"],
-                        "body-sm": ["Inter"],
-                        "label-sm": ["Inter"],
-                        "headline-lg": ["Inter"],
-                        "headline-md": ["Inter"],
-                        "body-md": ["Inter"],
-                        "label-lg": ["Inter"],
-                        "body-lg": ["Inter"],
-                        "display-lg-mobile": ["Inter"],
-                        "label-md": ["Inter"],
-                        "numeric-md": ["Inter"]
-                    },
-                    fontSize: {
-                        "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.025em", "fontWeight": "700"}],
-                        "headline-sm": ["16px", {"lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
-                        "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
-                        "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "600"}],
-                        "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
-                        "headline-md": ["20px", {"lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600"}],
-                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
-                        "label-lg": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
-                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
-                        "display-lg-mobile": ["26px", {"lineHeight": "34px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
-                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500"}],
-                        "numeric-md": ["14px", {"lineHeight": "20px", "fontWeight": "500"}]
-                    }
-                }
-            }
-        };
-    </script>
+    @include('components.theme-tokens', ['section' => 'config'])
 </head>
 <body class="bg-surface font-body-md text-body-md text-on-surface overflow-x-hidden">
 
 <!-- Sidebar -->
-<aside class="fixed left-0 top-0 h-full w-64 bg-surface-container-low shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 hidden lg:flex flex-col justify-between py-space-lg">
+<div class="fixed inset-0 z-[45] bg-black/60 backdrop-blur-sm hidden lg:hidden" id="collabSidebarBackdrop"></div>
+<aside class="fixed left-0 top-0 h-full w-64 bg-surface-container-low shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 hidden lg:flex flex-col justify-between py-space-lg" id="collabSidebar">
     <div class="flex flex-col gap-space-lg">
-        <div class="px-space-xl flex items-center gap-space-sm">
-            <a class="w-9 h-9 rounded-xl bg-primary-container flex items-center justify-center text-on-primary shadow-sm" href="{{ route('dashboard') }}">
-                <span class="material-symbols-outlined text-[22px]">corporate_fare</span>
-            </a>
-            <div class="flex flex-col">
-                <div class="flex items-center gap-space-xs">
-                    <span class="font-headline-sm text-headline-sm text-on-surface">HRM Pro</span>
-                    <span class="px-1.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-fixed text-[10px] font-label-sm uppercase tracking-wider font-semibold">TN</span>
+        <div class="px-space-xl flex items-center justify-between gap-space-sm">
+            <div class="flex items-center gap-space-sm">
+                <a class="w-9 h-9 rounded-xl bg-primary-container flex items-center justify-center text-on-primary shadow-sm" href="{{ route('dashboard') }}">
+                    <span class="material-symbols-outlined text-[22px]">corporate_fare</span>
+                </a>
+                <div class="flex flex-col">
+                    <div class="flex items-center gap-space-xs">
+                        <span class="font-headline-sm text-headline-sm text-on-surface">HRM Pro</span>
+                        <span class="px-1.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-fixed text-[10px] font-label-sm uppercase tracking-wider font-semibold">TN</span>
+                    </div>
+                    <span class="font-label-sm text-label-sm text-on-surface-variant leading-none">Portail Collaborateur</span>
                 </div>
-                <span class="font-label-sm text-label-sm text-on-surface-variant leading-none">Portail Collaborateur</span>
             </div>
+            <button class="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors shrink-0" id="collabSidebarClose" type="button" aria-label="Fermer le menu">
+                <span class="material-symbols-outlined text-[20px]">close</span>
+            </button>
         </div>
 
         <div class="px-space-lg">
@@ -212,6 +138,9 @@
     <!-- Top Header -->
     <header class="fixed top-0 left-0 lg:left-64 right-0 h-16 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-4 sm:px-6 gap-3">
         <div class="flex items-center gap-3 min-w-0">
+            <button aria-label="Ouvrir le menu" class="lg:hidden w-9 h-9 rounded-xl flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors shrink-0" id="collabMobileNavBtn" type="button">
+                <span class="material-symbols-outlined text-[20px]">menu</span>
+            </button>
             <!-- Mobile brand -->
             <a class="lg:hidden flex items-center gap-2 shrink-0" href="{{ route('dashboard') }}">
                 <div class="w-9 h-9 rounded-xl bg-primary-container flex items-center justify-center text-on-primary shadow-sm">
@@ -220,23 +149,49 @@
                 <span class="font-label-lg font-semibold text-on-surface hidden sm:inline">HRM Pro</span>
             </a>
             <!-- Search -->
-            <div class="hidden md:flex w-96 items-center gap-space-sm px-space-md py-space-xs rounded-xl bg-surface-container-low shadow-[0_1px_3px_0_rgba(15,23,42,0.05)] text-on-surface-variant">
+            <form class="relative hidden md:flex w-96 items-center gap-space-sm px-space-md py-space-xs rounded-xl bg-surface-container-low shadow-[0_1px_3px_0_rgba(15,23,42,0.05)] text-on-surface-variant" data-pages="{{ $searchPages->toJson() }}" id="collabSearchForm" role="search">
                 <span class="material-symbols-outlined text-[18px]">search</span>
-                <span class="font-body-sm text-body-sm text-on-surface-variant select-none">Rechercher un document, solde congé, fiche...</span>
+                <input class="flex-1 min-w-0 bg-transparent border-0 p-0 font-body-sm text-body-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-0" id="collabSearchInput" placeholder="Rechercher un document, solde congé, fiche..." type="text" autocomplete="off" aria-label="Rechercher dans le portail"/>
                 <span class="ml-auto font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface">⌘K</span>
-            </div>
+                <div class="hidden absolute left-0 right-0 top-full mt-2 rounded-xl bg-surface-container-lowest shadow-lg border border-surface-container-high py-1 z-50" id="collabSearchMenu"></div>
+            </form>
         </div>
 
         <div class="flex items-center gap-3 sm:gap-space-lg shrink-0">
-            <a class="h-9.5 px-3 sm:px-space-lg rounded-xl bg-primary-container text-on-primary font-label-lg text-label-lg flex items-center gap-space-xs hover:bg-primary shadow-[0_1px_3px_0_rgba(15,23,42,0.05)] transition-all" href="{{ route('conges.create') }}">
+            <a class="h-10 px-3 sm:px-space-lg rounded-xl bg-primary-container text-on-primary font-label-lg text-label-lg flex items-center gap-space-xs hover:bg-primary-fill shadow-[0_1px_3px_0_rgba(15,23,42,0.05)] transition-all" href="{{ route('collaborator.conges') }}#nouvelle-demande">
                 <span class="material-symbols-outlined text-[18px]">add</span>
                 <span class="hidden sm:inline">Nouvelle Demande</span>
             </a>
+            <button aria-label="Changer le thème" aria-pressed="false" class="w-9 h-9 rounded-xl flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors shrink-0" data-theme-toggle type="button">
+                <span class="material-symbols-outlined text-[20px]" data-theme-icon>contrast</span>
+            </button>
             <div class="relative flex items-center justify-center">
-                <button class="w-9 h-9 rounded-xl flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" type="button">
+                <button aria-expanded="false" aria-label="Notifications" class="w-9 h-9 rounded-xl flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-collab-dropdown-btn="collabNotificationsMenu" id="collabNotificationsBtn" type="button">
                     <span class="material-symbols-outlined text-[20px]">notifications</span>
                 </button>
-                <span class="absolute top-1 right-1 w-4 h-4 rounded-full bg-error text-on-error font-label-sm text-[10px] flex items-center justify-center font-bold pointer-events-none">2</span>
+                <span class="absolute top-1 right-1 w-4 h-4 rounded-full bg-error text-on-error font-label-sm text-[10px] items-center justify-center font-bold pointer-events-none {{ $collaboratorNotificationCount > 0 ? 'flex' : 'hidden' }}">{{ $collaboratorNotificationCount }}</span>
+                <div class="hidden absolute right-0 top-full mt-3 w-72 rounded-xl bg-surface-container-lowest shadow-lg border border-surface-container-high py-1 z-50" data-collab-dropdown id="collabNotificationsMenu">
+                    <div class="flex items-center justify-between px-4 py-2 border-b border-surface-container-high">
+                        <span class="font-label-lg text-label-lg text-on-surface font-semibold">Notifications</span>
+                        <span class="font-label-sm text-label-sm text-on-surface-variant">{{ $collaboratorNotificationCount }} {{ $collaboratorNotificationCount > 1 ? 'nouvelles' : 'nouvelle' }}{{ $collaboratorNotificationCount === 0 ? 's' : '' }}</span>
+                    </div>
+                    @forelse ($collaboratorNotifications as $notification)
+                        <a class="flex items-start gap-2 px-4 py-2.5 hover:bg-surface-container-low transition-colors" href="{{ $notification['url'] }}">
+                            <span class="w-8 h-8 rounded-lg {{ $notification['tone'] }} flex items-center justify-center shrink-0">
+                                <span class="material-symbols-outlined text-[18px]">{{ $notification['icon'] }}</span>
+                            </span>
+                            <span class="flex flex-col min-w-0">
+                                <span class="font-label-lg text-label-lg text-on-surface font-semibold">{{ $notification['title'] }}</span>
+                                <span class="font-label-sm text-label-sm text-on-surface-variant">{{ $notification['subtitle'] }}</span>
+                            </span>
+                        </a>
+                    @empty
+                        <div class="flex items-center gap-2 px-4 py-4 text-on-surface-variant">
+                            <span class="material-symbols-outlined text-[18px]">notifications_off</span>
+                            <span class="font-body-sm text-body-sm">Aucune notification pour le moment.</span>
+                        </div>
+                    @endforelse
+                </div>
             </div>
             <div class="flex items-center gap-space-md pl-space-sm">
                 <div class="hidden sm:flex flex-col text-right">
@@ -246,14 +201,14 @@
                         <span class="px-1.5 py-0.5 rounded bg-surface-container-high text-on-secondary-container font-label-sm text-[10px]">{{ $matricule }}</span>
                     </div>
                 </div>
-                <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0">
+                <div class="w-8 h-8 rounded-full bg-primary-fill flex items-center justify-center shrink-0">
                     <span class="text-on-primary text-[11px] font-bold">{{ $initials ?: 'U' }}</span>
                 </div>
                 <div class="relative">
-                    <button class="w-6 h-6 rounded flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" title="Menu utilisateur" type="button" id="userMenuBtn">
+                    <button aria-expanded="false" class="w-6 h-6 rounded flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" data-collab-dropdown-btn="userMenu" title="Menu utilisateur" type="button" id="userMenuBtn">
                         <span class="material-symbols-outlined text-[18px]">keyboard_arrow_down</span>
                     </button>
-                    <div class="hidden absolute right-0 mt-2 w-48 rounded-xl bg-surface-container-lowest shadow-lg border border-surface-container-high py-1 z-50" id="userMenu">
+                    <div class="hidden absolute right-0 mt-2 w-48 rounded-xl bg-surface-container-lowest shadow-lg border border-surface-container-high py-1 z-50" data-collab-dropdown id="userMenu">
                         <a class="flex items-center gap-2 px-4 py-2 text-label-lg text-on-surface hover:bg-surface-container-low transition-colors" href="{{ route('profile.edit') }}">
                             <span class="material-symbols-outlined text-[18px]">person</span>
                             Mon profil
@@ -272,21 +227,163 @@
     </header>
 
     <main class="w-full pt-16 bg-surface min-h-screen">
+        @include('collaborator.partials.flash-toasts')
         {{ $slot }}
+        @include('collaborator.partials.form-guard')
     </main>
 </div>
 
 <script>
-    // User menu dropdown
-    const userMenuBtn = document.getElementById('userMenuBtn');
-    const userMenu = document.getElementById('userMenu');
-    if (userMenuBtn && userMenu) {
-        userMenuBtn.addEventListener('click', (event) => {
-            event.stopPropagation();
-            userMenu.classList.toggle('hidden');
+    (() => {
+        const searchForm = document.getElementById('collabSearchForm');
+        const searchInput = document.getElementById('collabSearchInput');
+        const searchMenu = document.getElementById('collabSearchMenu');
+        const sidebar = document.getElementById('collabSidebar');
+        const sidebarBackdrop = document.getElementById('collabSidebarBackdrop');
+        const mobileNavBtn = document.getElementById('collabMobileNavBtn');
+        const sidebarClose = document.getElementById('collabSidebarClose');
+
+        let pages = [];
+        try {
+            pages = JSON.parse(searchForm?.dataset.pages || '[]');
+        } catch (error) {
+            pages = [];
+        }
+
+        const normalize = (value) => (value || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+        const hideSearch = () => {
+            if (!searchMenu) return;
+            searchMenu.classList.add('hidden');
+            searchMenu.innerHTML = '';
+        };
+
+        const renderSearch = () => {
+            if (!searchMenu || !searchInput) return;
+            const query = normalize(searchInput.value.trim());
+            searchMenu.innerHTML = '';
+
+            if (!query) {
+                searchMenu.classList.add('hidden');
+                return;
+            }
+
+            const matches = pages
+                .filter((page) => normalize(page.label + ' ' + page.keywords).includes(query))
+                .slice(0, 5);
+
+            if (!matches.length) {
+                const empty = document.createElement('div');
+                empty.className = 'px-4 py-3 font-body-sm text-body-sm text-on-surface-variant';
+                empty.textContent = 'Aucune page ne correspond à votre recherche.';
+                searchMenu.appendChild(empty);
+            } else {
+                matches.forEach((page) => {
+                    const link = document.createElement('a');
+                    link.className = 'flex items-center gap-2 px-4 py-2 hover:bg-surface-container-low transition-colors';
+                    link.href = page.url;
+
+                    const icon = document.createElement('span');
+                    icon.className = 'material-symbols-outlined text-[18px] text-primary';
+                    icon.textContent = page.icon;
+
+                    const label = document.createElement('span');
+                    label.className = 'font-label-lg text-label-lg text-on-surface';
+                    label.textContent = page.label;
+
+                    link.append(icon, label);
+                    searchMenu.appendChild(link);
+                });
+            }
+
+            searchMenu.classList.remove('hidden');
+        };
+
+        const closeDropdowns = (except = null) => {
+            document.querySelectorAll('[data-collab-dropdown-btn]').forEach((btn) => {
+                const menu = document.getElementById(btn.dataset.collabDropdownBtn);
+                if (!menu || menu === except) return;
+                menu.classList.add('hidden');
+                btn.setAttribute('aria-expanded', 'false');
+            });
+        };
+
+        document.querySelectorAll('[data-collab-dropdown-btn]').forEach((btn) => {
+            const menu = document.getElementById(btn.dataset.collabDropdownBtn);
+            if (!menu) return;
+            btn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const willOpen = menu.classList.contains('hidden');
+                closeDropdowns(willOpen ? menu : null);
+                hideSearch();
+                menu.classList.toggle('hidden', !willOpen);
+                btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+            });
+            menu.addEventListener('click', (event) => event.stopPropagation());
         });
-        document.addEventListener('click', () => userMenu.classList.add('hidden'));
-    }
+
+        const openSidebar = () => {
+            if (!sidebar || !sidebarBackdrop) return;
+            sidebar.classList.remove('hidden');
+            sidebar.classList.add('flex');
+            sidebarBackdrop.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        };
+
+        const closeSidebar = () => {
+            if (!sidebar || !sidebarBackdrop) return;
+            sidebar.classList.add('hidden');
+            sidebar.classList.remove('flex');
+            sidebarBackdrop.classList.add('hidden');
+            document.body.style.overflow = '';
+        };
+
+        mobileNavBtn?.addEventListener('click', (event) => {
+            event.stopPropagation();
+            closeDropdowns();
+            hideSearch();
+            openSidebar();
+        });
+        sidebarClose?.addEventListener('click', closeSidebar);
+        sidebarBackdrop?.addEventListener('click', closeSidebar);
+        sidebar?.querySelectorAll('nav a').forEach((link) => link.addEventListener('click', closeSidebar));
+
+        searchInput?.addEventListener('input', renderSearch);
+        searchInput?.addEventListener('focus', () => {
+            closeDropdowns();
+            if (searchInput.value.trim()) renderSearch();
+        });
+        searchForm?.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const first = searchMenu?.querySelector('a');
+            if (first) window.location.href = first.href;
+        });
+
+        document.addEventListener('click', (event) => {
+            closeDropdowns();
+            if (searchForm && !searchForm.contains(event.target)) hideSearch();
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+                event.preventDefault();
+                if (searchInput) {
+                    searchInput.focus();
+                    searchInput.select();
+                }
+            }
+            if (event.key === 'Escape') {
+                closeDropdowns();
+                hideSearch();
+                closeSidebar();
+                if (document.activeElement === searchInput) searchInput.blur();
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 1024) closeSidebar();
+        });
+    })();
 </script>
 </body>
 </html>

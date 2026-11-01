@@ -2,11 +2,19 @@
 <div class="flex flex-col w-full py-margin-mobile md:py-margin space-y-space-xl">
 
 @if (session('success'))
-<div class="p-space-md rounded-xl bg-[#ECFDF5] text-[#065F46] font-label-lg text-label-lg flex items-center gap-space-sm shadow-sm">
+<div class="p-space-md rounded-xl bg-[#ECFDF5] text-[#065F46] dark:bg-tertiary/15 dark:text-tertiary-fixed-dim font-label-lg text-label-lg flex items-center gap-space-sm shadow-sm">
     <span class="material-symbols-outlined text-body-lg">check_circle</span>
     <span>{{ session('success') }}</span>
 </div>
 @endif
+@if (session('error'))
+<div class="p-space-md rounded-xl bg-[#FFFBEB] text-[#92400E] dark:bg-[#3f3113] dark:text-[#ffd48a] font-label-lg text-label-lg flex items-center gap-space-sm shadow-sm">
+    <span class="material-symbols-outlined text-body-lg">error</span>
+    <span>{{ session('error') }}</span>
+</div>
+@endif
+
+@include('admin.partials.validation-errors')
 
 <!-- Top Navigation & Breadcrumb -->
 <div class="flex flex-col md:flex-row md:items-end justify-between gap-space-md">
@@ -30,7 +38,7 @@
 @endforeach
 </select>
 </form>
-<button class="h-10 px-space-lg rounded-xl bg-primary-container hover:bg-primary text-on-primary font-label-lg text-label-lg flex items-center gap-space-xs shadow-md transition-all active:scale-[0.98]" type="button" onclick="openScheduleModal(null)">
+<button class="h-10 px-space-lg rounded-xl bg-primary-container hover:bg-primary-fill text-on-primary font-label-lg text-label-lg flex items-center gap-space-xs shadow-md transition-all active:scale-[0.98]" type="button" onclick="openScheduleModal(null)">
 <span class="material-symbols-outlined text-body-md">add_chart</span>
 <span>Nouvelle Planification</span>
 </button>
@@ -201,7 +209,7 @@
 <a class="h-9 px-space-md rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md transition-colors" href="{{ route('admin.employees') }}">
             Voir le module
           </a>
-<a class="h-9 px-space-md rounded-xl bg-primary-container hover:bg-primary text-on-primary font-label-md text-label-md flex items-center gap-1 transition-colors" href="{{ route('admin.reports.export', ['dataset' => 'employees']) }}">
+<a class="h-9 px-space-md rounded-xl bg-primary-container hover:bg-primary-fill text-on-primary font-label-md text-label-md flex items-center gap-1 transition-colors" href="{{ route('admin.reports.export', ['dataset' => 'employees']) }}">
 <span class="material-symbols-outlined text-body-md">download</span>
 <span>Exporter CSV Effectifs</span>
 </a>
@@ -295,7 +303,7 @@
 <span class="material-symbols-outlined text-body-sm text-secondary">info</span> Fichier DSN généré par le module Paie
         </div>
 <div class="flex items-center gap-space-sm">
-<a class="h-9 px-space-md rounded-xl bg-primary-container hover:bg-primary text-on-primary font-label-md text-label-md flex items-center gap-1.5 transition-colors" href="{{ route('admin.reports.export', ['dataset' => 'employees']) }}">
+<a class="h-9 px-space-md rounded-xl bg-primary-container hover:bg-primary-fill text-on-primary font-label-md text-label-md flex items-center gap-1.5 transition-colors" href="{{ route('admin.reports.export', ['dataset' => 'employees']) }}">
 <span class="material-symbols-outlined text-body-md">download</span>
 <span>Exporter Registre (CSV)</span>
 </a>
@@ -369,7 +377,7 @@
           </td>
 <td class="py-3 px-space-md">
 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold {{ $schedule->status === 'actif' ? 'bg-emerald-50 text-tertiary' : 'bg-surface-container text-secondary' }}">
-<span class="w-1.5 h-1.5 rounded-full {{ $schedule->status === 'actif' ? 'bg-tertiary' : 'bg-[#64748B]' }} mr-1.5"></span> {{ App\Models\ReportSchedule::STATUSES[$schedule->status] ?? $schedule->status }}
+<span class="w-1.5 h-1.5 rounded-full {{ $schedule->status === 'actif' ? 'bg-tertiary' : 'bg-[#64748B] dark:bg-outline' }} mr-1.5"></span> {{ App\Models\ReportSchedule::STATUSES[$schedule->status] ?? $schedule->status }}
 </span>
 </td>
 <td class="py-3 px-space-md text-right">
@@ -406,68 +414,88 @@
 </div>
 </div>
 
-<!-- ==================== MODAL: Planification (créer / modifier) ==================== -->
-<div class="hidden fixed inset-0 z-50 items-center justify-center p-gutter" id="schedule-modal">
-<div class="absolute inset-0 bg-black/40" onclick="closeModal('schedule-modal')"></div>
-<div class="relative bg-surface-container-lowest rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
-    <div class="p-space-lg border-b border-surface-container flex items-center justify-between sticky top-0 bg-surface-container-lowest">
-        <h2 class="font-headline-sm text-headline-sm text-on-surface font-bold" id="schedule-modal-title">Nouvelle Planification</h2>
-        <button class="w-8 h-8 rounded-lg hover:bg-surface-container flex items-center justify-center text-on-surface-variant" type="button" onclick="closeModal('schedule-modal')">
-            <span class="material-symbols-outlined text-body-lg">close</span>
+<!-- ==================== DRAWER: Planification (créer / modifier) ==================== -->
+<div class="hidden fixed inset-0 z-50 overflow-hidden justify-end" id="schedule-modal">
+<div class="absolute inset-0 bg-black/60 backdrop-blur-xs" onclick="closeModal('schedule-modal')"></div>
+<div class="relative w-full max-w-2xl bg-surface-container-lowest shadow-2xl flex flex-col h-full z-10 overflow-hidden">
+    <div class="p-space-xl bg-surface-container-low/60 flex items-start justify-between gap-space-md">
+        <div class="flex items-center gap-space-md">
+            <div class="w-12 h-12 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-sm shrink-0">
+                <span class="material-symbols-outlined text-headline-lg">schedule_send</span>
+            </div>
+            <div class="flex flex-col">
+                <h2 class="font-headline-md text-headline-md text-on-surface tracking-tight" id="schedule-modal-title">Nouvelle Planification</h2>
+                <p class="font-body-sm text-body-sm text-on-surface-variant">Programmez l'envoi automatique d'un rapport</p>
+            </div>
+        </div>
+        <button aria-label="Fermer" class="w-9 h-9 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors shrink-0" type="button" onclick="closeModal('schedule-modal')">
+            <span class="material-symbols-outlined text-headline-sm">close</span>
         </button>
     </div>
-    <form method="POST" action="{{ route('admin.reports.schedules.store') }}" id="schedule-form" class="p-space-lg flex flex-col gap-space-md">
+    <form method="POST" action="{{ route('admin.reports.schedules.store') }}" id="schedule-form" class="flex-1 overflow-y-auto p-space-xl flex flex-col gap-space-md">
         @csrf
         <input type="hidden" name="_method" value="" id="schedule-method"/>
-        <div>
-            <label class="font-label-md text-label-md text-on-surface">Intitulé du rapport *</label>
-            <input class="mt-1 w-full h-10 px-3 rounded-lg bg-surface-container-low focus:outline-none focus:bg-surface-container font-body-md text-body-md text-on-surface" name="title" required/>
+        <div class="flex flex-col gap-space-xs">
+            <label class="font-label-md text-label-md text-on-surface font-medium" for="schedule-title">Intitulé du rapport <span class="text-error">*</span></label>
+            <input class="w-full h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md placeholder:text-on-surface-variant focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="schedule-title" name="title" placeholder="Ex: Rapport de paie mensuel — Novembre 2025" required/>
         </div>
-        <div>
-            <label class="font-label-md text-label-md text-on-surface">Description</label>
-            <input class="mt-1 w-full h-10 px-3 rounded-lg bg-surface-container-low focus:outline-none focus:bg-surface-container font-body-md text-body-md text-on-surface" name="description"/>
+        <div class="flex flex-col gap-space-xs">
+            <label class="font-label-md text-label-md text-on-surface font-medium" for="schedule-description">Description</label>
+            <input class="w-full h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md placeholder:text-on-surface-variant focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="schedule-description" name="description" placeholder="Ex: Synthèse des salaires, cotisations CNSS et IRPP"/>
         </div>
-        <div>
-            <label class="font-label-md text-label-md text-on-surface">Destinataires *</label>
-            <input class="mt-1 w-full h-10 px-3 rounded-lg bg-surface-container-low focus:outline-none focus:bg-surface-container font-body-md text-body-md text-on-surface" name="recipients" placeholder="Direction Financière, Cabinet Comptable..." required/>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
-            <div>
-                <label class="font-label-md text-label-md text-on-surface">Fréquence *</label>
-                <select class="mt-1 w-full h-10 px-3 rounded-lg bg-surface-container-low focus:outline-none focus:bg-surface-container font-body-md text-body-md text-on-surface" name="frequency">
-                    @foreach (App\Models\ReportSchedule::FREQUENCIES as $key => $label)
-                    <option value="{{ $key }}">{{ $label }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="font-label-md text-label-md text-on-surface">Déclencheur / Détail</label>
-                <input class="mt-1 w-full h-10 px-3 rounded-lg bg-surface-container-low focus:outline-none focus:bg-surface-container font-body-md text-body-md text-on-surface" name="schedule_detail" placeholder="Chaque 28 du mois"/>
-            </div>
+        <div class="flex flex-col gap-space-xs">
+            <label class="font-label-md text-label-md text-on-surface font-medium" for="schedule-recipients">Destinataires <span class="text-error">*</span></label>
+            <input class="w-full h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="schedule-recipients" name="recipients" placeholder="Direction Financière, Cabinet Comptable..." required/>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
-            <div>
-                <label class="font-label-md text-label-md text-on-surface">Format *</label>
-                <select class="mt-1 w-full h-10 px-3 rounded-lg bg-surface-container-low focus:outline-none focus:bg-surface-container font-body-md text-body-md text-on-surface" name="format">
-                    <option value="CSV">CSV</option>
-                    <option value="PDF">PDF</option>
-                    <option value="XLSX">XLSX</option>
-                </select>
+            <div class="flex flex-col gap-space-xs">
+                <label class="font-label-md text-label-md text-on-surface font-medium" for="schedule-frequency">Fréquence <span class="text-error">*</span></label>
+                <div class="relative">
+                    <select class="w-full appearance-none h-10 pl-3 pr-8 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all cursor-pointer" id="schedule-frequency" name="frequency">
+                        @foreach (App\Models\ReportSchedule::FREQUENCIES as $key => $label)
+                        <option value="{{ $key }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-body-md">expand_more</span>
+                </div>
             </div>
-            <div>
-                <label class="font-label-md text-label-md text-on-surface">Statut *</label>
-                <select class="mt-1 w-full h-10 px-3 rounded-lg bg-surface-container-low focus:outline-none focus:bg-surface-container font-body-md text-body-md text-on-surface" name="status">
-                    @foreach (App\Models\ReportSchedule::STATUSES as $key => $label)
-                    <option value="{{ $key }}">{{ $label }}</option>
-                    @endforeach
-                </select>
+            <div class="flex flex-col gap-space-xs">
+                <label class="font-label-md text-label-md text-on-surface font-medium" for="schedule-detail">Déclencheur / Détail</label>
+                <input class="w-full h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="schedule-detail" name="schedule_detail" placeholder="Chaque 28 du mois"/>
             </div>
         </div>
-        <div class="flex justify-end gap-space-sm pt-space-xs">
-            <button class="h-10 px-space-lg rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-lg text-label-lg transition-colors" type="button" onclick="closeModal('schedule-modal')">Annuler</button>
-            <button class="h-10 px-space-lg rounded-xl bg-primary-container hover:bg-primary text-on-primary font-label-lg text-label-lg transition-colors" type="submit">Enregistrer</button>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+            <div class="flex flex-col gap-space-xs">
+                <label class="font-label-md text-label-md text-on-surface font-medium" for="schedule-format">Format <span class="text-error">*</span></label>
+                <div class="relative">
+                    <select class="w-full appearance-none h-10 pl-3 pr-8 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all cursor-pointer" id="schedule-format" name="format">
+                        <option value="CSV">CSV</option>
+                        <option value="PDF">PDF</option>
+                        <option value="XLSX">XLSX</option>
+                    </select>
+                    <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-body-md">expand_more</span>
+                </div>
+            </div>
+            <div class="flex flex-col gap-space-xs">
+                <label class="font-label-md text-label-md text-on-surface font-medium" for="schedule-status">Statut <span class="text-error">*</span></label>
+                <div class="relative">
+                    <select class="w-full appearance-none h-10 pl-3 pr-8 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all cursor-pointer" id="schedule-status" name="status">
+                        @foreach (App\Models\ReportSchedule::STATUSES as $key => $label)
+                        <option value="{{ $key }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-body-md">expand_more</span>
+                </div>
+            </div>
         </div>
     </form>
+    <div class="p-space-lg bg-surface-container-lowest shadow-[0_-4px_12px_rgba(0,0,0,0.03)] flex items-center justify-between gap-space-sm">
+        <button class="h-10 px-space-lg rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-lg text-label-lg transition-colors" type="button" onclick="closeModal('schedule-modal')">Annuler</button>
+        <button class="h-10 px-space-xl rounded-xl bg-primary-fill hover:bg-primary-container text-on-primary font-label-lg text-label-lg shadow-md flex items-center gap-space-xs transition-all transform active:scale-95" type="submit" form="schedule-form">
+            <span class="material-symbols-outlined text-body-md">check</span>
+            <span>Enregistrer</span>
+        </button>
+    </div>
 </div>
 </div>
 
@@ -475,10 +503,12 @@
 function openModal(id) {
     document.getElementById(id).classList.remove('hidden');
     document.getElementById(id).classList.add('flex');
+    document.body.style.overflow = 'hidden';
 }
 function closeModal(id) {
     document.getElementById(id).classList.add('hidden');
     document.getElementById(id).classList.remove('flex');
+    document.body.style.overflow = '';
 }
 
 function openScheduleModal(button) {

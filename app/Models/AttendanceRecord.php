@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Carbon\Carbon;
+use App\Support\AttendanceClock;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -63,6 +64,48 @@ class AttendanceRecord extends Model
     public function employee()
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    public function scopeForEmployee($query, Employee|int $employee)
+    {
+        return $query->where('employee_id', $employee instanceof Employee ? $employee->id : $employee);
+    }
+
+    public function isOpenSession(): bool
+    {
+        return $this->check_in !== null && $this->check_out === null;
+    }
+
+    public function isOnBreak(): bool
+    {
+        return $this->break_start !== null && $this->break_end === null;
+    }
+
+    public function effectiveBreakMinutes(): int
+    {
+        $minutes = (int) $this->break_minutes;
+
+        if ($this->isOnBreak()) {
+            $start = AttendanceClock::combine($this->work_date, (string) $this->break_start);
+            $minutes += max(0, (int) $start->diffInMinutes(AttendanceClock::now()));
+        }
+
+        return $minutes;
+    }
+
+    public function liveWorkedMinutes(): int
+    {
+        $in = $this->minutesOf($this->check_in);
+
+        if ($in === null) {
+            return 0;
+        }
+
+        $out = $this->check_out !== null
+            ? $this->minutesOf($this->check_out)
+            : AttendanceClock::now()->hour * 60 + AttendanceClock::now()->minute;
+
+        return max(0, $out - $in - $this->effectiveBreakMinutes());
     }
 
     public function checkInShort(): ?string

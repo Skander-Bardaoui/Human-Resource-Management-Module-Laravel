@@ -94,7 +94,7 @@ class TokenService
     {
         $stored = $this->findValidRefreshToken($plain);
 
-        if ($stored === null || $stored->user === null) {
+        if ($stored === null || $stored->user === null || ! $stored->user->isActive()) {
             return null;
         }
 

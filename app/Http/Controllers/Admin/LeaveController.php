@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Conges;
 use App\Models\Employee;
+use App\Support\LeaveCancellation;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -153,6 +154,29 @@ class LeaveController extends Controller
         });
 
         return back()->with('success', 'La demande de '.$leave->employeeName().' a été approuvée.');
+    }
+
+    public function stop(Request $request, Conges $leave)
+    {
+        if (! $leave->isApproved()) {
+            return back()->with('error', 'Seul un congé déjà approuvé peut être arrêté.');
+        }
+
+        if (! $leave->isCancellable()) {
+            return back()->with('error', 'Ce congé est déjà terminé : il ne peut plus être arrêté.');
+        }
+
+        $outcome = LeaveCancellation::stop($leave, 'l\'administration', $request->user()->id);
+
+        if ($outcome === null) {
+            return back()->with('error', 'Ce congé ne peut plus être arrêté.');
+        }
+
+        $message = $outcome['result'] === LeaveCancellation::INTERRUPTED
+            ? 'Le congé de '.$leave->employeeName().' a été arrêté. '.$outcome['restored_days'].' jour(s) réintégré(s).'
+            : 'Le congé de '.$leave->employeeName().' a été annulé. '.$outcome['restored_days'].' jour(s) réintégré(s).';
+
+        return back()->with('success', $message);
     }
 
     public function reject(Request $request, Conges $leave)

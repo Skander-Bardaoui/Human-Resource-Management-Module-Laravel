@@ -59,6 +59,42 @@ test('users can not authenticate with invalid password', function () {
     $this->assertDatabaseCount('refresh_tokens', 0);
 });
 
+test('deactivated accounts can not authenticate', function () {
+    $user = User::factory()->create(['is_active' => false]);
+
+    $response = $this->post('/login', [
+        'email' => $user->email,
+        'password' => 'password',
+    ]);
+
+    $response->assertSessionHasErrors([
+        'email' => "Ce compte a été désactivé par l'administration. Contactez le service RH.",
+    ]);
+    $response->assertCookieMissing('access_token');
+    $response->assertCookieMissing('refresh_token');
+
+    $this->assertDatabaseCount('refresh_tokens', 0);
+});
+
+test('access tokens are rejected for deactivated accounts', function () {
+    $user = User::factory()->create(['is_active' => false]);
+
+    $this->withCookies(tokenCookiesFor($user))
+        ->get('/dashboard')
+        ->assertRedirect('/login');
+});
+
+test('refresh tokens are rejected for deactivated accounts', function () {
+    $user = User::factory()->create();
+    $tokens = tokenCookiesFor($user);
+
+    $user->forceFill(['is_active' => false])->save();
+
+    $this->withCookies(['refresh_token' => $tokens['refresh_token']])
+        ->get('/dashboard')
+        ->assertRedirect('/login');
+});
+
 test('users can logout', function () {
     $user = User::factory()->create();
 

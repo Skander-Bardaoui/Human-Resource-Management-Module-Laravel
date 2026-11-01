@@ -117,7 +117,7 @@
                 <span>Onboardé</span>
             </span>
             @else
-            <a class="px-2 py-1 rounded bg-primary-container text-on-primary font-label-sm text-label-sm font-semibold hover:bg-primary transition-colors flex items-center gap-1" href="{{ route('admin.employees', ['onboard' => $candidate->id]) }}" title="Créer la fiche collaborateur">
+            <a class="px-2 py-1 rounded bg-primary-container text-on-primary font-label-sm text-label-sm font-semibold hover:bg-primary-fill transition-colors flex items-center gap-1" href="{{ route('admin.employees', ['onboard' => $candidate->id]) }}" title="Créer la fiche collaborateur">
                 <span>Onboarding</span>
                 <span class="material-symbols-outlined text-body-sm">arrow_forward</span>
             </a>

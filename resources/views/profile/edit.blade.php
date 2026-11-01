@@ -51,7 +51,7 @@
                         <span class="material-symbols-outlined text-[18px] text-secondary">edit_note</span>
                         <span>Mettre à jour mes informations</span>
                     </button>
-                    <button class="h-[38px] px-space-lg rounded-xl bg-primary text-on-primary font-label-lg text-label-lg shadow-sm hover:bg-primary-container transition-all flex items-center gap-space-xs" id="btn-request-review" type="button">
+                    <button class="h-[38px] px-space-lg rounded-xl bg-primary-fill text-on-primary font-label-lg text-label-lg shadow-sm hover:bg-primary-container transition-all flex items-center gap-space-xs" id="btn-request-review" type="button">
                         <span class="material-symbols-outlined text-[18px]">calendar_add_on</span>
                         <span>Demander un Point Carrière</span>
                     </button>
@@ -246,7 +246,7 @@
                     <div class="relative pl-6 space-y-space-xl before:absolute before:left-[11px] before:top-3 before:bottom-3 before:w-0.5 before:bg-surface-container-high">
                         <!-- Node 1: Present (Lead Fullstack Engineer) -->
                         <div class="relative group">
-                            <div class="absolute -left-6 top-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center ring-4 ring-surface-container-lowest shadow-sm">
+                            <div class="absolute -left-6 top-1 w-5 h-5 rounded-full bg-primary-fill flex items-center justify-center ring-4 ring-surface-container-lowest shadow-sm">
                                 <span class="w-2 h-2 rounded-full bg-on-primary"></span>
                             </div>
                             <div class="bg-surface-container-low p-space-lg rounded-xl flex flex-col gap-space-sm hover:shadow-md transition-shadow">
@@ -697,7 +697,7 @@
                             @endif
 
                             <div class="flex justify-end">
-                                <button class="h-10 px-space-lg rounded-xl bg-primary text-on-primary font-label-lg text-label-lg shadow-sm hover:bg-primary-container transition-all flex items-center gap-space-xs" type="submit">
+                                <button class="h-10 px-space-lg rounded-xl bg-primary-fill text-on-primary font-label-lg text-label-lg shadow-sm hover:bg-primary-container transition-all flex items-center gap-space-xs" type="submit">
                                     <span class="material-symbols-outlined text-[18px]">save</span>
                                     <span>Enregistrer les informations</span>
                                 </button>
@@ -746,7 +746,7 @@
                                 </div>
                             </div>
                             <div class="flex justify-end">
-                                <button class="h-10 px-space-lg rounded-xl bg-primary text-on-primary font-label-lg text-label-lg shadow-sm hover:bg-primary-container transition-all flex items-center gap-space-xs" type="submit">
+                                <button class="h-10 px-space-lg rounded-xl bg-primary-fill text-on-primary font-label-lg text-label-lg shadow-sm hover:bg-primary-container transition-all flex items-center gap-space-xs" type="submit">
                                     <span class="material-symbols-outlined text-[18px]">key</span>
                                     <span>Mettre à jour le mot de passe</span>
                                 </button>
