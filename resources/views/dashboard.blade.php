@@ -80,13 +80,10 @@
                                     </button>
                                 </form>
                             @endif
-                            <form method="POST" action="{{ route('collaborator.attendance.punch-out') }}" onsubmit="return confirm('Confirmer l\'enregistrement de votre départ pour la journée ?');">
-                                @csrf
-                                <button class="h-10 px-space-md rounded-xl bg-surface-container-lowest text-on-surface hover:bg-surface-variant font-label-lg text-label-lg flex items-center justify-center gap-space-xs shadow-sm transition-all active:scale-95" type="submit">
-                                    <span class="material-symbols-outlined text-[18px] text-error">logout</span>
-                                    <span>Pointer Départ</span>
-                                </button>
-                            </form>
+                            <button class="h-10 px-space-md rounded-xl bg-surface-container-lowest text-on-surface hover:bg-surface-variant font-label-lg text-label-lg flex items-center justify-center gap-space-xs shadow-sm transition-all active:scale-95" data-open-punch-out type="button">
+                                <span class="material-symbols-outlined text-[18px] text-error">logout</span>
+                                <span>Pointer Départ</span>
+                            </button>
                         @elseif ($punchState === 'not_started')
                             <form method="POST" action="{{ route('collaborator.attendance.punch-in') }}">
                                 @csrf
@@ -474,6 +471,8 @@
             </div>
         </div>
     </div>
+
+@include('collaborator.partials.punch-out-dialog')
 
 <script>
     (() => {

@@ -162,13 +162,10 @@
                         @endif
 
                         @if ($punchState === 'working' || $punchState === 'on_break')
-                            <form class="flex-1" method="POST" action="{{ route('collaborator.attendance.punch-out') }}" onsubmit="return confirm('Confirmer le pointage de votre départ pour aujourd\'hui ?');">
-                                @csrf
-                                <button class="w-full h-11 px-space-lg rounded-xl bg-primary-container hover:bg-primary-fill text-on-primary font-label-lg text-label-lg font-semibold flex items-center justify-center gap-space-xs shadow-sm transition-all active:scale-[0.98]" type="submit">
-                                    <span class="material-symbols-outlined text-[20px]">logout</span>
-                                    <span>Pointer ma Sortie</span>
-                                </button>
-                            </form>
+                            <button class="flex-1 h-11 px-space-lg rounded-xl bg-primary-container hover:bg-primary-fill text-on-primary font-label-lg text-label-lg font-semibold flex items-center justify-center gap-space-xs shadow-sm transition-all active:scale-[0.98]" data-open-punch-out type="button">
+                                <span class="material-symbols-outlined text-[20px]">logout</span>
+                                <span>Pointer ma Sortie</span>
+                            </button>
                         @endif
 
                         @if ($punchState === 'done' || $punchState === 'leave' || $punchState === 'not_started')
@@ -423,10 +420,7 @@
                                                 </span>
                                             @endif
                                             @if ($row['isToday'] && $row['live'])
-                                                <form method="POST" action="{{ route('collaborator.attendance.punch-out') }}" onsubmit="return confirm('Pointer votre sortie maintenant ?');">
-                                                    @csrf
-                                                    <button class="font-label-sm text-label-sm text-primary hover:text-on-primary-fixed-variant font-semibold" type="submit">Pointer Sortie</button>
-                                                </form>
+                                                <button class="font-label-sm text-label-sm text-primary hover:text-on-primary-fixed-variant font-semibold" data-open-punch-out type="button">Pointer Sortie</button>
                                             @elseif ($row['isAnomaly'])
                                                 <button class="px-3 py-1 rounded-md bg-primary-container text-on-primary font-label-sm text-label-sm font-semibold hover:bg-primary-fill transition-all shadow-xs" data-open-modal="regularize-modal" data-reg-date="{{ $row['date']->toDateString() }}" data-reg-direction="out" type="button">
                                                     Régulariser
@@ -566,6 +560,8 @@
             </form>
         </div>
     </div>
+
+    @include('collaborator.partials.punch-out-dialog')
 
     <script>
         (() => {
