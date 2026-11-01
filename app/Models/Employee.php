@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Employee extends Model
 {
@@ -63,6 +64,8 @@ class Employee extends Model
         'address',
         'mobile',
         'work_mobile',
+        'emergency_contact_name',
+        'emergency_contact_phone',
         'cnss_number',
         'cin_file_path',
         'employee_note',
@@ -81,6 +84,41 @@ class Employee extends Model
         'token_leave_days' => 'integer',
         'token_sick_leave_days' => 'integer',
     ];
+
+    public function conges(): HasMany
+    {
+        return $this->hasMany(Conges::class);
+    }
+
+    public function attendanceRecords(): HasMany
+    {
+        return $this->hasMany(AttendanceRecord::class);
+    }
+
+    public function payslips(): HasMany
+    {
+        return $this->hasMany(Payslip::class);
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(Document::class);
+    }
+
+    public function advanceRequests(): HasMany
+    {
+        return $this->hasMany(AdvanceRequest::class);
+    }
+
+    public function documentRequests(): HasMany
+    {
+        return $this->hasMany(DocumentRequest::class);
+    }
+
+    public function matricule(): string
+    {
+        return 'MAT-'.str_pad((string) $this->id, 4, '0', STR_PAD_LEFT);
+    }
 
     public function initials(): string
     {

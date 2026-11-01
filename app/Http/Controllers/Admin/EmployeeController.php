@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Candidate;
 use App\Models\Employee;
+use App\Models\RefreshToken;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -25,6 +27,12 @@ class EmployeeController extends Controller
         $editEmployee = $request->filled('edit') ? Employee::find($request->integer('edit')) : null;
         $viewEmployee = $request->filled('view') ? Employee::find($request->integer('view')) : null;
         $onboardValues = $this->onboardValues($request);
+
+        $portalAccounts = User::query()
+            ->whereNotNull('email')
+            ->get()
+            ->reject(fn (User $user) => $user->isAdmin())
+            ->keyBy(fn (User $user) => mb_strtolower(trim((string) $user->email)));
 
         $totalEmployees = Employee::count();
         $activeProfiles = Employee::where('status', '!=', 'inactif')->count();
@@ -51,7 +59,55 @@ class EmployeeController extends Controller
             'cnssComplete',
             'cnssRate',
             'newThisQuarter',
+            'portalAccounts',
         ));
+    }
+
+    public function toggleAccess(Request $request, Employee $employee)
+    {
+        $account = $this->linkedAccount($employee);
+
+        if (! $account) {
+            return redirect()
+                ->back(fallback: route('admin.employees'))
+                ->with('error', "Aucun compte portail n'est associé à l'email de ".$employee->name.'.');
+        }
+
+        if ($account->isAdmin() || $account->id === $request->user()->id) {
+            return redirect()
+                ->back(fallback: route('admin.employees'))
+                ->with('error', "Un compte administrateur ne peut pas être désactivé depuis cette page.");
+        }
+
+        $account->forceFill(['is_active' => ! $account->isActive()])->save();
+
+        if (! $account->isActive()) {
+            RefreshToken::query()
+                ->where('user_id', $account->id)
+                ->whereNull('revoked_at')
+                ->update(['revoked_at' => now()]);
+        }
+
+        $message = $account->isActive()
+            ? "L'accès au portail de ".$employee->name.' a été réactivé.'
+            : "L'accès au portail de ".$employee->name.' a été désactivé. La connexion est bloquée immédiatement.';
+
+        return redirect()
+            ->back(fallback: route('admin.employees'))
+            ->with('success', $message);
+    }
+
+    private function linkedAccount(Employee $employee): ?User
+    {
+        $email = mb_strtolower(trim((string) $employee->email));
+
+        if ($email === '') {
+            return null;
+        }
+
+        return User::query()
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->first();
     }
 
     public function store(Request $request)

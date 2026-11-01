@@ -172,6 +172,98 @@ it('does not let an already processed request be approved again', function () {
     expect($employee->fresh()->token_leave_days)->toBe(20);
 });
 
+it('stops an approved future leave and restores the annual balance', function () {
+    $admin = adminLeaveUser();
+    $employee = leaveEmployee(['token_leave_days' => 17]);
+    $leave = makeLeave($employee, [
+        'status' => 'approved',
+        'start_date' => '2026-10-26',
+        'end_date' => '2026-10-28',
+        'working_days' => 3,
+    ]);
+
+    $this->withCookies(tokenCookiesFor($admin))
+        ->patch(route('admin.leaves.stop', $leave))
+        ->assertSessionHas('success');
+
+    $leave->refresh();
+
+    expect($leave->status)->toBe('cancelled')
+        ->and($leave->reviewed_by)->toBe($admin->id)
+        ->and($leave->decision_note)->toContain('Annulée par l\'administration')
+        ->and($employee->fresh()->token_leave_days)->toBe(20);
+});
+
+it('stops an approved leave in progress and keeps the consumed days', function () {
+    $admin = adminLeaveUser();
+    $employee = leaveEmployee(['token_leave_days' => 15]);
+    $leave = makeLeave($employee, [
+        'status' => 'approved',
+        'start_date' => '2026-10-19',
+        'end_date' => '2026-10-23',
+        'working_days' => 5,
+    ]);
+
+    $this->withCookies(tokenCookiesFor($admin))
+        ->patch(route('admin.leaves.stop', $leave))
+        ->assertSessionHas('success');
+
+    $leave->refresh();
+
+    expect($leave->status)->toBe('approved')
+        ->and($leave->end_date->toDateString())->toBe('2026-10-20')
+        ->and($leave->working_days)->toBe(2)
+        ->and($leave->reviewed_by)->toBe($admin->id)
+        ->and($employee->fresh()->token_leave_days)->toBe(18);
+});
+
+it('only stops approved leaves that have not ended yet', function () {
+    $admin = adminLeaveUser();
+    $employee = leaveEmployee(['token_leave_days' => 20]);
+
+    $pending = makeLeave($employee);
+    $ended = makeLeave($employee, [
+        'status' => 'approved',
+        'start_date' => '2026-10-05',
+        'end_date' => '2026-10-07',
+        'working_days' => 3,
+    ]);
+
+    $cookies = tokenCookiesFor($admin);
+
+    $this->withCookies($cookies)
+        ->patch(route('admin.leaves.stop', $pending))
+        ->assertSessionHas('error');
+
+    $this->withCookies($cookies)
+        ->patch(route('admin.leaves.stop', $ended))
+        ->assertSessionHas('error');
+
+    expect($pending->fresh()->status)->toBe('pending')
+        ->and($ended->fresh()->status)->toBe('approved')
+        ->and($employee->fresh()->token_leave_days)->toBe(20);
+});
+
+it('renders the stop confirmation popup for approved leaves', function () {
+    $admin = adminLeaveUser();
+    $employee = leaveEmployee(['name' => 'Nadia Bouazizi']);
+    makeLeave($employee, [
+        'status' => 'approved',
+        'start_date' => '2026-10-26',
+        'end_date' => '2026-10-28',
+        'working_days' => 3,
+    ]);
+
+    $this->withCookies(tokenCookiesFor($admin))
+        ->get(route('admin.leaves', ['month' => '2026-10']))
+        ->assertOk()
+        ->assertSee('id="stop-leave-dialog"', false)
+        ->assertSee('data-stop-leave', false)
+        ->assertSee('data-employee="Nadia Bouazizi"', false)
+        ->assertSee('data-days="3"', false)
+        ->assertSee('data-mode="future"', false);
+});
+
 it('filters requests by search, type, status, department and month', function () {
     $admin = adminLeaveUser();
     $itEmployee = leaveEmployee(['name' => 'Anis Gharbi', 'department' => 'it']);

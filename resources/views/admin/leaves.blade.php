@@ -16,6 +16,7 @@
         'pending' => ['label' => 'En Attente', 'classes' => 'bg-secondary-container/50 text-on-secondary-fixed-variant', 'dot' => 'bg-secondary'],
         'approved' => ['label' => 'Approuvé', 'classes' => 'bg-tertiary-fixed text-on-tertiary-fixed', 'dot' => 'bg-tertiary'],
         'rejected' => ['label' => 'Rejeté', 'classes' => 'bg-error-container text-on-error-container', 'dot' => 'bg-error'],
+        'cancelled' => ['label' => 'Annulé', 'classes' => 'bg-surface-container text-on-surface-variant', 'dot' => 'bg-outline'],
     ];
     $typeChipClasses = [
         'annuel' => 'bg-surface-container-high text-primary',
@@ -146,7 +147,7 @@
 </a>
 </div>
 <!-- Primary CTA Trigger Modal -->
-<button class="h-10 px-space-lg rounded-xl bg-primary-container hover:bg-primary text-on-primary font-label-lg text-label-lg flex items-center gap-space-xs shadow-md transition-all active:scale-95" id="openModalBtn" type="button">
+<button class="h-10 px-space-lg rounded-xl bg-primary-container hover:bg-primary-fill text-on-primary font-label-lg text-label-lg flex items-center gap-space-xs shadow-md transition-all active:scale-95" id="openModalBtn" type="button">
 <span class="material-symbols-outlined text-body-md">add_circle</span>
 <span>Nouvelle Demande de Congé</span>
 </button>
@@ -478,9 +479,21 @@ Revenir à la vue tableau
 </form>
 </div>
 @else
+<div class="flex items-center justify-end gap-1">
+@if ($leave->isApproved() && $leave->isCancellable())
+<form action="{{ route('admin.leaves.stop', $leave) }}" class="shrink-0" data-days="{{ $leave->remainingWorkingDays() }}" data-employee="{{ $leave->employeeName() }}" data-mode="{{ $leave->isInProgress() ? 'progress' : 'future' }}" data-period="{{ $leave->start_date?->format('d/m/Y') }} → {{ $leave->end_date?->format('d/m/Y') }}" data-stop-leave data-type="{{ $leave->typeLabel() }}" method="POST">
+@csrf
+@method('PATCH')
+<button class="h-8 px-2 rounded-lg bg-error-container hover:bg-error hover:text-on-error text-error font-label-sm text-label-sm font-semibold flex items-center gap-1 transition-colors whitespace-nowrap" type="submit" title="Arrêter le congé approuvé">
+<span class="material-symbols-outlined text-body-sm">stop_circle</span>
+<span>Arrêter</span>
+</button>
+</form>
+@endif
 <a class="h-8 px-3 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-label-sm text-label-sm font-medium transition-colors inline-flex items-center" href="{{ $linkWith(['view' => $leave->id, 'display' => $isCalendar ? 'calendar' : null]) }}">
                   Détails
                 </a>
+</div>
 @endif
 </td>
 </tr>
@@ -551,7 +564,7 @@ Revenir à la vue tableau
 @endphp
 <!-- Leave Details Drawer -->
 <div class="fixed inset-0 z-50 overflow-hidden flex justify-end transition-opacity duration-300" id="view-leave-modal">
-<div class="fixed inset-0 bg-inverse-surface/40 backdrop-blur-xs transition-opacity" id="view-leave-backdrop"></div>
+<div class="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity" id="view-leave-backdrop"></div>
 <div class="relative w-full max-w-2xl bg-surface-container-lowest shadow-2xl flex flex-col h-full z-10 overflow-hidden">
 <!-- Drawer Header -->
 <div class="p-space-xl bg-surface-container-low/60 flex items-start justify-between gap-space-md">
@@ -750,6 +763,17 @@ Revenir à la vue tableau
 </button>
 </form>
 </div>
+@elseif ($viewLeave->isApproved() && $viewLeave->isCancellable())
+<div class="flex items-center gap-1.5">
+<form action="{{ route('admin.leaves.stop', $viewLeave) }}" data-days="{{ $viewLeave->remainingWorkingDays() }}" data-employee="{{ $viewLeave->employeeName() }}" data-mode="{{ $viewLeave->isInProgress() ? 'progress' : 'future' }}" data-period="{{ $viewLeave->start_date?->format('d/m/Y') }} → {{ $viewLeave->end_date?->format('d/m/Y') }}" data-stop-leave data-type="{{ $viewLeave->typeLabel() }}" method="POST">
+@csrf
+@method('PATCH')
+<button class="h-10 px-space-md rounded-xl bg-error-container hover:bg-error hover:text-on-error text-error font-label-md text-label-md font-semibold flex items-center gap-1 transition-colors" type="submit">
+<span class="material-symbols-outlined text-body-md">stop_circle</span>
+<span>Arrêter le congé</span>
+</button>
+</form>
+</div>
 @else
 <span class="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1.5">
 <span class="material-symbols-outlined text-tertiary text-body-md">task_alt</span>
@@ -761,36 +785,36 @@ Demande traitée
 </div>
 @endif
 
-<!-- Modal: Nouvelle Demande de Congé -->
-<div class="fixed inset-0 z-50 flex items-center justify-center p-space-md {{ $errors->any() ? '' : 'hidden' }}" id="leaveModal">
-<!-- Backdrop Blur with Ambient Overlay -->
-<div class="fixed inset-0 bg-on-surface/40 backdrop-blur-sm transition-opacity" id="modalBackdrop"></div>
-<!-- Modal Card Level 3 Elevation -->
-<div class="relative w-full max-w-2xl bg-surface-container-lowest rounded-xl shadow-xl overflow-hidden flex flex-col z-10 animate-in fade-in zoom-in-95 duration-200">
-<!-- Modal Header -->
-<div class="px-space-xl py-space-lg bg-surface-container-low flex items-center justify-between">
-<div class="flex items-center gap-space-sm">
-<div class="w-10 h-10 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-sm">
-<span class="material-symbols-outlined text-headline-sm">event_note</span>
+<!-- Slide-Over Drawer: Nouvelle Demande de Congé -->
+<div class="fixed inset-0 z-50 overflow-hidden flex justify-end {{ $errors->any() ? '' : 'hidden' }}" data-quick-create="{{ request()->boolean('new') ? '1' : '0' }}" id="leaveModal">
+<!-- Overlay backdrop -->
+<div class="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity" id="modalBackdrop"></div>
+<!-- Slide-over Drawer Panel -->
+<div class="relative w-full max-w-2xl bg-surface-container-lowest shadow-2xl flex flex-col h-full z-10 overflow-hidden">
+<!-- Drawer Header -->
+<div class="p-space-xl bg-surface-container-low/60 flex items-start justify-between gap-space-md">
+<div class="flex items-center gap-space-md">
+<div class="w-12 h-12 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-sm shrink-0">
+<span class="material-symbols-outlined text-headline-lg">event_note</span>
 </div>
-<div>
-<h3 class="font-headline-md text-headline-md text-on-surface font-bold">Soumettre une demande de congé</h3>
-<p class="font-label-sm text-label-sm text-on-surface-variant">Conformité légale selon le Code du Travail Tunisien</p>
+<div class="flex flex-col">
+<h2 class="font-headline-md text-headline-md text-on-surface tracking-tight">Soumettre une demande de congé</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Conformité légale selon le Code du Travail Tunisien</p>
 </div>
 </div>
-<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center justify-center transition-colors" id="closeModalBtn" type="button">
-<span class="material-symbols-outlined text-body-lg">close</span>
+<button aria-label="Fermer" class="w-9 h-9 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors shrink-0" id="closeModalBtn" type="button">
+<span class="material-symbols-outlined text-headline-sm">close</span>
 </button>
 </div>
-<!-- Modal Body -->
-<form action="{{ route('admin.leaves.store') }}" class="p-space-xl space-y-space-lg overflow-y-auto max-h-[calc(90vh-140px)]" enctype="multipart/form-data" id="leaveForm" method="POST">
+<!-- Drawer Form Content -->
+<form action="{{ route('admin.leaves.store') }}" class="flex-1 overflow-y-auto p-space-xl flex flex-col gap-space-md" enctype="multipart/form-data" id="leaveForm" method="POST">
 @csrf
 @if ($errors->any())
-<div class="p-space-sm rounded-xl bg-error-container text-on-error-container flex items-start gap-space-sm">
-<span class="material-symbols-outlined text-body-lg shrink-0">error</span>
-<div class="flex flex-col gap-0.5">
-<span class="font-label-md text-label-md font-semibold">Veuillez corriger les informations suivantes :</span>
-<ul class="list-disc list-inside font-body-sm text-body-sm">
+<div class="p-space-md rounded-xl bg-error-container text-on-error-container flex items-start gap-space-sm">
+<span class="material-symbols-outlined text-body-lg shrink-0 mt-0.5">error</span>
+<div class="flex flex-col gap-1">
+<span class="font-label-md text-label-md font-semibold">Veuillez corriger les informations suivantes</span>
+<ul class="list-disc list-inside font-body-sm text-body-sm space-y-0.5">
 @foreach ($errors->all() as $error)
 <li>{{ $error }}</li>
 @endforeach
@@ -800,46 +824,42 @@ Demande traitée
 @endif
 <!-- Field 1: Collaborateur Dropdown -->
 <div class="flex flex-col gap-space-xs">
-<label class="font-label-md text-label-md font-semibold text-on-surface" for="leaveEmployeeSelect">Collaborateur Bénéficiaire</label>
+<label class="font-label-md text-label-md text-on-surface font-medium" for="leaveEmployeeSelect">Collaborateur Bénéficiaire</label>
 <div class="relative">
-<select class="w-full h-10 pl-3 pr-10 rounded-xl bg-surface-container-low font-body-md text-body-md text-on-surface focus:outline-none focus:bg-surface-container cursor-pointer appearance-none" id="leaveEmployeeSelect" name="employee_id" required>
+<select class="w-full appearance-none h-10 pl-3 pr-8 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all cursor-pointer" id="leaveEmployeeSelect" name="employee_id" required>
 @forelse ($employees as $employee)
 <option value="{{ $employee->id }}" data-balance="{{ $employee->token_leave_days ?? '' }}" @selected((int) $selectedEmployeeId === $employee->id)>{{ $employee->name }} — {{ $employee->position }} ({{ $employee->departmentShortLabel() }})</option>
 @empty
 <option value="">Aucun collaborateur disponible</option>
 @endforelse
 </select>
-<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-body-md">unfold_more</span>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-body-md">expand_more</span>
 </div>
 </div>
 <!-- Field 2: Type de Congé -->
 <div class="flex flex-col gap-space-xs">
-<label class="font-label-md text-label-md font-semibold text-on-surface" for="leaveTypeSelect">Type de Congé</label>
+<label class="font-label-md text-label-md text-on-surface font-medium" for="leaveTypeSelect">Type de Congé</label>
 <div class="relative">
-<select class="w-full h-10 pl-3 pr-10 rounded-xl bg-surface-container-low font-body-md text-body-md text-on-surface focus:outline-none focus:bg-surface-container cursor-pointer appearance-none" id="leaveTypeSelect" name="type" required>
+<select class="w-full appearance-none h-10 pl-3 pr-8 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all cursor-pointer" id="leaveTypeSelect" name="type" required>
 @foreach ($typeOptions as $value => $label)
 <option value="{{ $value }}" @selected($initialType === $value)>{{ $label }}@if ($value === 'annuel') (Solde actuel disponible : {{ $defaultBalance ?? 0 }} jours)@elseif ($value === 'maladie') (Justificatif médical requis)@endif</option>
 @endforeach
 </select>
-<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-body-md">expand_more</span>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-body-md">expand_more</span>
 </div>
 </div>
 <!-- Date Range Grid with calculated duration -->
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
 <div class="flex flex-col gap-space-xs">
-<label class="font-label-md text-label-md font-semibold text-on-surface" for="startDate">Date Début</label>
-<div class="relative">
-<input class="w-full h-10 px-3 rounded-xl bg-surface-container-low font-numeric-md text-numeric-md text-on-surface focus:outline-none focus:bg-surface-container" id="startDate" name="start_date" type="date" value="{{ $defaultStart }}" required/>
-</div>
+<label class="font-label-md text-label-md text-on-surface font-medium" for="startDate">Date Début</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="startDate" name="start_date" type="date" value="{{ $defaultStart }}" required/>
 </div>
 <div class="flex flex-col gap-space-xs">
-<label class="font-label-md text-label-md font-semibold text-on-surface" for="endDate">Date Fin</label>
-<div class="relative">
-<input class="w-full h-10 px-3 rounded-xl bg-surface-container-low font-numeric-md text-numeric-md text-on-surface focus:outline-none focus:bg-surface-container" id="endDate" name="end_date" type="date" value="{{ $defaultEnd }}" required/>
+<label class="font-label-md text-label-md text-on-surface font-medium" for="endDate">Date Fin</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="endDate" name="end_date" type="date" value="{{ $defaultEnd }}" required/>
 </div>
 </div>
-</div>
-<!-- Live Calculation & Balance Projection Card (Bespoke Dynamic Indicator) -->
+<!-- Live Calculation & Balance Projection Card -->
 <div class="p-space-md rounded-xl bg-surface-container-low flex items-center justify-between">
 <div class="flex items-center gap-space-sm">
 <div class="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
@@ -857,16 +877,16 @@ Demande traitée
 </div>
 <!-- Field 4: Motif / Commentaire -->
 <div class="flex flex-col gap-space-xs">
-<label class="font-label-md text-label-md font-semibold text-on-surface" for="leaveReason">Motif / Commentaire de la demande</label>
-<textarea class="w-full p-3 rounded-xl bg-surface-container-low font-body-sm text-body-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:bg-surface-container resize-none" id="leaveReason" name="reason" placeholder="Précisez la raison ou les dispositions de passation..." required rows="2" maxlength="1000">{{ old('reason') }}</textarea>
+<label class="font-label-md text-label-md text-on-surface font-medium" for="leaveReason">Motif / Commentaire de la demande</label>
+<textarea class="w-full min-h-[96px] px-3 py-2 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md placeholder:text-on-surface-variant focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all resize-y" id="leaveReason" name="reason" placeholder="Précisez la raison ou les dispositions de passation..." required rows="2" maxlength="1000">{{ old('reason') }}</textarea>
 </div>
-<!-- Field 5: Pièce jointe Upload Zone (for medical note or family certificate) -->
+<!-- Field 5: Pièce jointe Upload Zone -->
 <div class="flex flex-col gap-space-xs">
-<div class="flex items-center justify-between">
-<label class="font-label-md text-label-md font-semibold text-on-surface" for="leaveAttachment">Pièce justificative (Optionnelle ou Obligatoire pour maladie)</label>
-<span class="font-label-sm text-label-sm text-on-surface-variant">PDF, PNG, JPG jusqu'à 10MB</span>
+<div class="flex items-center justify-between gap-space-sm">
+<label class="font-label-md text-label-md text-on-surface font-medium" for="leaveAttachment">Pièce justificative (Optionnelle ou Obligatoire pour maladie)</label>
+<span class="font-label-sm text-label-sm text-on-surface-variant shrink-0">PDF, PNG, JPG jusqu'à 10MB</span>
 </div>
-<div class="relative bg-surface-container-low rounded-xl p-space-lg flex flex-col items-center justify-center text-center hover:bg-surface-container transition-colors cursor-pointer group">
+<div class="relative bg-surface-container-low rounded-xl ring-1 ring-outline-variant p-space-lg flex flex-col items-center justify-center text-center hover:bg-surface-container transition-colors cursor-pointer group">
 <input accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" id="leaveAttachment" name="attachment" type="file"/>
 <div class="w-10 h-10 rounded-full bg-surface-container-highest group-hover:scale-110 flex items-center justify-center text-primary mb-2 transition-transform">
 <span class="material-symbols-outlined text-headline-sm">upload_file</span>
@@ -877,18 +897,20 @@ Demande traitée
 </div>
 </div>
 </form>
-<!-- Modal Footer -->
-<div class="px-space-xl py-space-md bg-surface-container-low flex items-center justify-end gap-space-md">
-<button class="h-10 px-space-lg rounded-xl bg-surface-container-lowest hover:bg-surface-container text-on-surface font-label-lg text-label-lg transition-colors" id="cancelModalBtn" type="button">
+<!-- Drawer Sticky Footer Actions -->
+<div class="p-space-lg bg-surface-container-lowest shadow-[0_-4px_12px_rgba(0,0,0,0.03)] flex items-center justify-between gap-space-sm">
+<button class="h-10 px-space-lg rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-lg text-label-lg transition-colors" id="cancelModalBtn" type="button">
           Annuler
         </button>
-<button class="h-10 px-space-xl rounded-xl bg-primary-container hover:bg-primary text-on-primary font-label-lg text-label-lg font-semibold flex items-center gap-space-xs shadow-md transition-all active:scale-95" form="leaveForm" id="submitLeaveBtn" type="submit">
+<button class="h-10 px-space-xl rounded-xl bg-primary-fill hover:bg-primary-container text-on-primary font-label-lg text-label-lg shadow-md flex items-center gap-space-xs transition-all transform active:scale-95" form="leaveForm" id="submitLeaveBtn" type="submit">
 <span class="material-symbols-outlined text-body-md">send</span>
 <span>Soumettre pour validation</span>
 </button>
 </div>
 </div>
 </div>
+
+@include('partials.stop-leave-dialog')
 
 <script>
   (function() {
@@ -1051,6 +1073,10 @@ Demande traitée
     }
 
     updateCalculation();
+
+    if (leaveModal && leaveModal.dataset.quickCreate === '1') {
+      openModal();
+    }
 
     document.querySelectorAll('[data-flash-toast]').forEach(function(toast) {
       setTimeout(function() {

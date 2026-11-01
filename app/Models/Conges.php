@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use App\Support\AttendanceClock;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,6 +25,7 @@ class Conges extends Model
         'pending' => 'En Attente',
         'approved' => 'Approuvé',
         'rejected' => 'Rejeté',
+        'cancelled' => 'Annulé',
     ];
 
     public const TYPE_ICONS = [
@@ -118,6 +120,79 @@ class Conges extends Model
     public function isRejected(): bool
     {
         return $this->status === 'rejected';
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === 'cancelled';
+    }
+
+    public function isCancellable(): bool
+    {
+        if ($this->start_date === null || $this->end_date === null) {
+            return false;
+        }
+
+        $today = AttendanceClock::today()->toDateString();
+
+        if ($this->isPending()) {
+            return $this->start_date->toDateString() >= $today;
+        }
+
+        if ($this->isApproved()) {
+            return $this->end_date->toDateString() >= $today;
+        }
+
+        return false;
+    }
+
+    public function isInProgress(): bool
+    {
+        if (! $this->isApproved() || $this->start_date === null || $this->end_date === null) {
+            return false;
+        }
+
+        $today = AttendanceClock::today()->toDateString();
+
+        return $this->start_date->toDateString() <= $today
+            && $this->end_date->toDateString() >= $today;
+    }
+
+    public function remainingWorkingDays(): int
+    {
+        if ($this->start_date === null || $this->end_date === null) {
+            return 0;
+        }
+
+        $today = AttendanceClock::today();
+        $timezone = AttendanceClock::timezone();
+
+        $start = $this->start_date->toDateString() >= $today->toDateString()
+            ? Carbon::parse($this->start_date->toDateString(), $timezone)
+            : $today->copy();
+        $end = Carbon::parse($this->end_date->toDateString(), $timezone);
+
+        if ($end->lt($start)) {
+            return 0;
+        }
+
+        return self::workingDaysFor($start, $end);
+    }
+
+    public function scopeForEmployee($query, Employee|int $employee)
+    {
+        return $query->where('employee_id', $employee instanceof Employee ? $employee->id : $employee);
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->whereIn('status', ['pending', 'approved']);
+    }
+
+    public function reference(): string
+    {
+        return 'CG-'.($this->start_date?->format('Y') ?? now()->format('Y'))
+            .'-'.str_pad((string) $this->id, 4, '0', STR_PAD_LEFT);
     }
 
     public function typeLabel(): string
@@ -227,6 +302,7 @@ class Conges extends Model
                 'pending' => 'projeté',
                 'approved' => 'Validé RH',
                 'rejected' => 'inchangé',
+                'cancelled' => 'annulé',
                 default => '',
             };
         }
@@ -241,6 +317,10 @@ class Conges extends Model
 
     public function periodNote(): string
     {
+        if ($this->isCancelled()) {
+            return 'Demande annulée';
+        }
+
         if ($this->start_date->equalTo($this->end_date)) {
             return 'Journée complète';
         }

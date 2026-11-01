@@ -28,6 +28,7 @@ class CandidateHiredMail extends Mailable
     {
         return new Content(
             view: 'emails.candidate-hired',
+            text: 'emails.candidate-hired-text',
         );
     }
 }

@@ -54,6 +54,14 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        if (! $user->isActive()) {
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => "Ce compte a été désactivé par l'administration. Contactez le service RH.",
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
 
         return $user;

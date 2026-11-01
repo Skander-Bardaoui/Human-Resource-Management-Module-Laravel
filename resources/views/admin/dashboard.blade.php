@@ -15,7 +15,7 @@
 <span class="font-label-lg text-label-lg font-semibold">Ce mois-ci (Mars 2025)</span>
 <span class="material-symbols-outlined text-body-sm text-on-surface-variant cursor-pointer">arrow_drop_down</span>
 </div>
-<button class="h-10 px-space-lg rounded-xl bg-primary-container text-on-primary hover:bg-primary font-label-lg text-label-lg flex items-center gap-space-xs shadow-md transition-all active:scale-95" type="button">
+<button class="h-10 px-space-lg rounded-xl bg-primary-container text-on-primary hover:bg-primary-fill font-label-lg text-label-lg flex items-center gap-space-xs shadow-md transition-all active:scale-95" type="button">
 <span class="material-symbols-outlined text-body-md">add_circle</span>
 <span>Nouvelle action rapide</span>
 </button>

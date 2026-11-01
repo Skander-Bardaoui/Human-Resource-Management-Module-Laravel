@@ -53,7 +53,7 @@
 <span class="material-symbols-outlined text-body-lg text-secondary">file_download</span>
 <span>Exporter Rapport</span>
 </a>
-<button class="h-9 px-4 rounded-xl bg-primary-container hover:bg-primary text-on-primary font-label-lg text-label-lg flex items-center gap-2 shadow-sm transition-all active:scale-[0.98]" id="openModalBtn" type="button">
+<button class="h-9 px-4 rounded-xl bg-primary-container hover:bg-primary-fill text-on-primary font-label-lg text-label-lg flex items-center gap-2 shadow-sm transition-all active:scale-[0.98]" id="openModalBtn" type="button">
 <span class="material-symbols-outlined text-body-md">add_circle</span>
 <span>+ Pointage Manuel</span>
 </button>
@@ -473,119 +473,135 @@
 </div>
 </div>
 </div>
-<!-- Manual Punch Slide-Over / Modal Overlay (Pure CSS/JS Interactive Layer) -->
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-[2px] opacity-0 pointer-events-none transition-all duration-200" id="manualPunchModal">
-<div class="bg-surface-container-lowest rounded-xl shadow-xl w-full max-w-lg p-6 relative mx-4 transform scale-95 transition-all duration-200" id="modalCard">
-<!-- Modal Header -->
-<div class="flex items-center justify-between pb-4 border-b border-surface-container">
-<div>
-<h3 class="font-headline-sm text-headline-sm text-on-surface">Ajouter un Pointage Manuel</h3>
+<!-- Manual Punch Slide-Over Drawer -->
+<div class="fixed inset-0 z-50 overflow-hidden flex justify-end transition-opacity duration-300 hidden" id="manualPunchModal">
+<div class="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity" id="punchModalBackdrop"></div>
+<div class="relative w-full max-w-2xl bg-surface-container-lowest shadow-2xl flex flex-col h-full z-10 overflow-hidden">
+<!-- Drawer Header -->
+<div class="p-space-xl bg-surface-container-low/60 flex items-start justify-between gap-space-md">
+<div class="flex items-center gap-space-md">
+<div class="w-12 h-12 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-sm shrink-0">
+<span class="material-symbols-outlined text-headline-lg">schedule</span>
+</div>
+<div class="flex flex-col">
+<h2 class="font-headline-md text-headline-md text-on-surface tracking-tight">Ajouter un Pointage Manuel</h2>
 <p class="font-body-sm text-body-sm text-on-surface-variant">Régularisation exceptionnelle de présence avec visa RH</p>
 </div>
-<button class="p-1 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" id="closeModalBtn" type="button">
-<span class="material-symbols-outlined text-body-lg">close</span>
+</div>
+<button aria-label="Fermer" class="w-9 h-9 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors shrink-0" id="closeModalBtn" type="button">
+<span class="material-symbols-outlined text-headline-sm">close</span>
 </button>
 </div>
-<!-- Modal Body Form -->
-<form class="space-y-4 pt-4" id="punchForm" method="POST" action="{{ route('admin.attendance.punch') }}">
+<!-- Drawer Form Content -->
+<form class="flex-1 overflow-y-auto p-space-xl flex flex-col gap-space-md" id="punchForm" method="POST" action="{{ route('admin.attendance.punch') }}">
 @csrf
 @if ($errors->any())
-<div class="p-3 rounded-lg bg-error-container text-on-error-container font-label-sm text-label-sm">
-{{ $errors->first() }}
+<div class="p-space-md rounded-xl bg-error-container text-on-error-container flex items-start gap-space-sm">
+<span class="material-symbols-outlined text-body-lg shrink-0 mt-0.5">error</span>
+<div class="flex flex-col gap-1">
+<span class="font-label-md text-label-md font-semibold">Veuillez corriger les informations suivantes</span>
+<ul class="list-disc list-inside font-body-sm text-body-sm space-y-0.5">
+@foreach ($errors->all() as $error)
+<li>{{ $error }}</li>
+@endforeach
+</ul>
+</div>
 </div>
 @endif
-<div>
-<label class="block font-label-md text-label-md text-on-surface font-semibold mb-1" for="punchEmployee">Collaborateur concerné</label>
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface font-medium" for="punchEmployee">Collaborateur concerné</label>
 <div class="relative">
-<select class="w-full h-10 pl-3 pr-8 rounded-xl bg-surface-container-low font-body-md text-body-md text-on-surface appearance-none focus:outline-none focus:bg-surface-container" id="punchEmployee" name="employee_id" required>
+<select class="w-full appearance-none h-10 pl-3 pr-8 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all cursor-pointer" id="punchEmployee" name="employee_id" required>
 @foreach ($employees as $employee)
 <option value="{{ $employee->id }}" @selected($employeeId === $employee->id)>{{ $employee->name }} (MAT-{{ str_pad((string) $employee->id, 4, '0', STR_PAD_LEFT) }})</option>
 @endforeach
 </select>
-<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-body-md">expand_more</span>
 </div>
 </div>
-<div class="grid grid-cols-2 gap-3">
-<div>
-<label class="block font-label-md text-label-md text-on-surface font-semibold mb-1" for="punchDate">Date</label>
-<input class="w-full h-10 px-3 rounded-xl bg-surface-container-low font-body-md text-body-md text-on-surface focus:outline-none focus:bg-surface-container" id="punchDate" name="date" type="date" value="{{ old('date', $selectedDate->toDateString()) }}" required/>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface font-medium" for="punchDate">Date</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="punchDate" name="date" type="date" value="{{ old('date', $selectedDate->toDateString()) }}" required/>
 </div>
-<div>
-<label class="block font-label-md text-label-md text-on-surface font-semibold mb-1" for="punchTime">Heure de pointage</label>
-<input class="w-full h-10 px-3 rounded-xl bg-surface-container-low font-body-md text-body-md text-on-surface focus:outline-none focus:bg-surface-container" id="punchTime" name="time" type="time" value="{{ old('time', '08:30') }}" required/>
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface font-medium" for="punchTime">Heure de pointage</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="punchTime" name="time" type="time" value="{{ old('time', '08:30') }}" required/>
 </div>
 </div>
-<div class="grid grid-cols-2 gap-3">
-<div>
-<label class="block font-label-md text-label-md text-on-surface font-semibold mb-1" for="punchDirection">Sens de flux</label>
-<select class="w-full h-10 px-3 rounded-xl bg-surface-container-low font-body-md text-body-md text-on-surface focus:outline-none focus:bg-surface-container" id="punchDirection" name="direction">
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface font-medium" for="punchDirection">Sens de flux</label>
+<div class="relative">
+<select class="w-full appearance-none h-10 pl-3 pr-8 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all cursor-pointer" id="punchDirection" name="direction">
 <option value="in" @selected(old('direction') === 'in')>Entrée / Arrivée</option>
 <option value="out" @selected(old('direction') === 'out')>Sortie / Départ</option>
 <option value="pause_in" @selected(old('direction') === 'pause_in')>Sortie Pause Déjeuner</option>
 <option value="pause_out" @selected(old('direction') === 'pause_out')>Retour Pause Déjeuner</option>
 </select>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-body-md">expand_more</span>
 </div>
-<div>
-<label class="block font-label-md text-label-md text-on-surface font-semibold mb-1" for="punchMotif">Motif de dérogation</label>
-<select class="w-full h-10 px-3 rounded-xl bg-surface-container-low font-body-md text-body-md text-on-surface focus:outline-none focus:bg-surface-container" id="punchMotif" name="motif">
+</div>
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface font-medium" for="punchMotif">Motif de dérogation</label>
+<div class="relative">
+<select class="w-full appearance-none h-10 pl-3 pr-8 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all cursor-pointer" id="punchMotif" name="motif">
 @foreach ($motifs as $value => $label)
 <option value="{{ $value }}" @selected(old('motif') === $value)>{{ $label }}</option>
 @endforeach
 </select>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-body-md">expand_more</span>
 </div>
 </div>
-<div>
-<label class="block font-label-md text-label-md text-on-surface font-semibold mb-1" for="punchComment">Commentaire de validation</label>
-<textarea class="w-full p-2.5 rounded-xl bg-surface-container-low font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:bg-surface-container" id="punchComment" name="comment" placeholder="Ex: Ordre de mission validé par la Direction Générale..." rows="2">{{ old('comment') }}</textarea>
 </div>
-<div class="p-3 bg-surface-container-low rounded-lg flex items-start gap-2.5">
-<span class="material-symbols-outlined text-primary text-body-md mt-0.5">verified</span>
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface font-medium" for="punchComment">Commentaire de validation</label>
+<textarea class="w-full min-h-[96px] px-3 py-2 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md placeholder:text-on-surface-variant focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all resize-y" id="punchComment" name="comment" placeholder="Ex: Ordre de mission validé par la Direction Générale..." rows="2">{{ old('comment') }}</textarea>
+</div>
+<div class="p-space-md rounded-xl bg-surface-container-low flex items-start gap-space-sm">
+<span class="material-symbols-outlined text-primary text-body-lg shrink-0 mt-0.5">verified</span>
 <p class="font-body-sm text-body-sm text-on-surface-variant">
             Ce pointage sera tracé au registre d'audit avec la signature électronique de l'utilisateur connecté ({{ optional(auth()->user())->name ?? 'Administrateur RH' }}).
           </p>
 </div>
-<!-- Footer Actions -->
-<div class="flex items-center justify-end gap-3 pt-3">
-<button class="h-9 px-4 rounded-xl bg-surface-container hover:bg-surface-container-high font-label-lg text-label-lg text-on-surface transition-colors" id="cancelModalBtn" type="button">
-            Annuler
-          </button>
-<button class="h-9 px-5 rounded-xl bg-primary-container hover:bg-primary font-label-lg text-label-lg text-on-primary shadow-sm transition-colors" type="submit">
-            Enregistrer le pointage
-          </button>
-</div>
 </form>
+<!-- Drawer Sticky Footer Actions -->
+<div class="p-space-lg bg-surface-container-lowest shadow-[0_-4px_12px_rgba(0,0,0,0.03)] flex items-center justify-between gap-space-sm">
+<button class="h-10 px-space-lg rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-lg text-label-lg transition-colors" id="cancelModalBtn" type="button">
+          Annuler
+        </button>
+<button class="h-10 px-space-xl rounded-xl bg-primary-fill hover:bg-primary-container text-on-primary font-label-lg text-label-lg shadow-md flex items-center gap-space-xs transition-all transform active:scale-95" type="submit" form="punchForm">
+<span class="material-symbols-outlined text-body-md">check</span>
+<span>Enregistrer le pointage</span>
+</button>
+</div>
 </div>
 </div>
 <script>
     // Client-side interactions for Modal, filters and prefill
     (function() {
       const modal = document.getElementById('manualPunchModal');
-      const modalCard = document.getElementById('modalCard');
+      const backdrop = document.getElementById('punchModalBackdrop');
       const openBtn = document.getElementById('openModalBtn');
       const closeBtn = document.getElementById('closeModalBtn');
       const cancelBtn = document.getElementById('cancelModalBtn');
 
       function showModal() {
         if (!modal) return;
-        modal.classList.remove('opacity-0', 'pointer-events-none');
-        if (modalCard) {
-          modalCard.classList.remove('scale-95');
-          modalCard.classList.add('scale-100');
-        }
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
       }
 
       function hideModal() {
         if (!modal) return;
-        modal.classList.add('opacity-0', 'pointer-events-none');
-        if (modalCard) {
-          modalCard.classList.remove('scale-100');
-          modalCard.classList.add('scale-95');
-        }
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
       }
 
       if (openBtn) openBtn.addEventListener('click', showModal);
       if (closeBtn) closeBtn.addEventListener('click', hideModal);
       if (cancelBtn) cancelBtn.addEventListener('click', hideModal);
+      if (backdrop) backdrop.addEventListener('click', hideModal);
 
       document.querySelectorAll('.js-edit-punch').forEach(function(button) {
         button.addEventListener('click', function() {

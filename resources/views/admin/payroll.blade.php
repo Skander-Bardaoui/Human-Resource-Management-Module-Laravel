@@ -87,7 +87,7 @@
 <form method="POST" action="{{ route('admin.payroll.close') }}" onsubmit="return confirm('Clôturer le cycle de paie ? Tous les bulletins non payés seront marqués comme payés.');">
 @csrf
 <input type="hidden" name="period" value="{{ $period }}"/>
-<button class="h-10 px-space-lg rounded-xl bg-primary-container hover:bg-primary text-on-primary font-label-lg text-label-lg flex items-center gap-space-xs shadow-md transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-primary-container" type="submit" @if ($periodClosed) disabled @endif>
+<button class="h-10 px-space-lg rounded-xl bg-primary-container hover:bg-primary-fill text-on-primary font-label-lg text-label-lg flex items-center gap-space-xs shadow-md transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-primary-container" type="submit" @if ($periodClosed) disabled @endif>
 <span class="material-symbols-outlined text-body-md">lock</span>
 <span>{{ $periodClosed ? 'Mois Clôturé' : 'Clôturer le Mois' }}</span>
 </button>
@@ -439,7 +439,7 @@
 <span class="material-symbols-outlined text-body-md text-primary">print</span>
 <span>Imprimer Bulletin</span>
 </button>
-<a class="w-full h-10 rounded-xl bg-primary-container hover:bg-primary text-on-primary font-label-lg text-label-lg flex items-center justify-center gap-space-xs transition-all shadow-sm" id="downloadSlipBtn" href="{{ $slip['downloadUrl'] ?? '#' }}" @if (! $slip) onclick="return false" @endif>
+<a class="w-full h-10 rounded-xl bg-primary-container hover:bg-primary-fill text-on-primary font-label-lg text-label-lg flex items-center justify-center gap-space-xs transition-all shadow-sm" id="downloadSlipBtn" href="{{ $slip['downloadUrl'] ?? '#' }}" @if (! $slip) onclick="return false" @endif>
 <span class="material-symbols-outlined text-body-md">download_done</span>
 <span>Télécharger PDF Signé Électroniquement</span>
 </a>
@@ -448,7 +448,7 @@
 </div>
 </div>
 <!-- Modal Barème IRPP -->
-<div class="hidden fixed inset-0 z-[70] bg-on-surface/40 backdrop-blur-sm flex items-center justify-center p-4" id="bracketModal" role="dialog" aria-modal="true" aria-labelledby="bracketModalTitle">
+<div class="hidden fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" id="bracketModal" role="dialog" aria-modal="true" aria-labelledby="bracketModalTitle">
 <div class="w-full max-w-lg bg-surface-container-lowest rounded-xl shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto">
 <div class="flex items-start justify-between pb-4 border-b border-surface-container">
 <div>
@@ -472,7 +472,7 @@
 <p>Indemnité de transport légale : 100 TND / mois, non soumise à cotisation.</p>
 </div>
 <div class="flex justify-end pt-2">
-<button class="px-4 py-2 rounded-lg bg-primary-container font-label-md text-label-md text-on-primary hover:bg-primary transition-colors" onclick="document.getElementById('bracketModal').classList.add('hidden')" type="button">
+<button class="px-4 py-2 rounded-lg bg-primary-container font-label-md text-label-md text-on-primary hover:bg-primary-fill transition-colors" onclick="document.getElementById('bracketModal').classList.add('hidden')" type="button">
           Fermer
         </button>
 </div>

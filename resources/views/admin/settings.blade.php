@@ -22,7 +22,7 @@
 <span class="material-symbols-outlined text-body-lg">history</span>
 <span>Journal d'audit</span>
 </button>
-<button class="h-10 px-6 rounded-xl bg-primary-container hover:bg-primary text-on-primary font-label-lg text-label-lg flex items-center gap-2 shadow-sm transition-all active:scale-95" id="save-btn" type="button">
+<button class="h-10 px-6 rounded-xl bg-primary-container hover:bg-primary-fill text-on-primary font-label-lg text-label-lg flex items-center gap-2 shadow-sm transition-all active:scale-95" id="save-btn" type="button">
 <span class="material-symbols-outlined text-body-lg">save</span>
 <span>Enregistrer les Modifications</span>
 </button>

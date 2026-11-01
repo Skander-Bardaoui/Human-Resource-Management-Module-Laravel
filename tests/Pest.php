@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\AttendanceRecord;
+use App\Models\Conges;
+use App\Models\Employee;
 use App\Models\User;
 use App\Services\TokenService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -52,4 +55,53 @@ function tokenCookiesFor(User $user, bool $remember = false): array
         'access_token' => $tokens['access_token'],
         'refresh_token' => $tokens['refresh_token'],
     ];
+}
+
+/**
+ * @return array{0: User, 1: Employee}
+ */
+function collaboratorAccount(array $employeeOverrides = [], array $userOverrides = []): array
+{
+    $employee = Employee::factory()->create(array_merge([
+        'status' => 'actif',
+        'department' => 'it',
+        'hire_date' => '2021-01-15',
+        'token_leave_days' => 20,
+        'leave_rights' => 30,
+        'token_sick_leave_days' => 15,
+    ], $employeeOverrides));
+
+    $user = User::factory()->create(array_merge([
+        'email' => mb_strtoupper($employee->email),
+        'role' => 'collaborator',
+    ], $userOverrides));
+
+    return [$user, $employee];
+}
+
+function collabAttendance(Employee $employee, string $date, array $attributes = []): AttendanceRecord
+{
+    return AttendanceRecord::create(array_merge([
+        'employee_id' => $employee->id,
+        'work_date' => $date,
+        'check_in' => '08:30:00',
+        'check_out' => '17:30:00',
+        'break_minutes' => 60,
+        'mode' => 'biometric',
+        'status' => 'present',
+    ], $attributes));
+}
+
+function collabLeave(Employee $employee, string $start, string $end, array $attributes = []): Conges
+{
+    return Conges::create(array_merge([
+        'employee_id' => $employee->id,
+        'employee_name' => $employee->name,
+        'type' => 'annuel',
+        'status' => 'pending',
+        'start_date' => $start,
+        'end_date' => $end,
+        'working_days' => Conges::workingDaysFor($start, $end),
+        'reason' => 'Raison de test.',
+    ], $attributes));
 }

@@ -53,7 +53,7 @@
 <span>Vue Organigramme</span>
 </button>
 </div>
-<button class="h-9 px-4 rounded-xl bg-primary-container hover:bg-primary font-label-lg text-label-lg text-on-primary flex items-center gap-1.5 shadow-sm transition-all hover:shadow-md" onclick="openDeptModal()" type="button">
+<button class="h-9 px-4 rounded-xl bg-primary-container hover:bg-primary-fill font-label-lg text-label-lg text-on-primary flex items-center gap-1.5 shadow-sm transition-all hover:shadow-md" onclick="openDeptModal()" type="button">
 <span class="material-symbols-outlined text-body-md">domain_add</span>
 <span>+ Nouveau Département</span>
 </button>
@@ -375,66 +375,81 @@
 </table>
 </div>
 </div>
-<!-- SLIDE-OVER MODAL: Nouveau Département / Modification -->
-<div class="hidden fixed inset-0 z-50 overflow-hidden bg-on-surface/40 backdrop-blur-sm flex justify-end" id="newDeptModal">
-<div class="w-full max-w-lg bg-surface-container-lowest h-full shadow-2xl p-6 flex flex-col justify-between overflow-y-auto">
-<form class="space-y-6 h-full flex flex-col justify-between" id="deptForm" method="POST" action="{{ route('admin.departments.store') }}">
-@csrf
-<input id="deptMethod" name="_method" type="hidden" value="POST"/>
-<div class="space-y-6">
-<div class="flex items-center justify-between pb-4 border-b border-surface-container">
-<div>
-<h2 class="font-headline-md text-headline-md text-on-surface font-bold" id="deptModalTitle">Nouveau Département</h2>
+<!-- SLIDE-OVER DRAWER: Nouveau Département / Modification -->
+<div class="hidden fixed inset-0 z-50 overflow-hidden flex justify-end" id="newDeptModal">
+<div class="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity" onclick="document.getElementById('newDeptModal').classList.add('hidden')"></div>
+<div class="relative w-full max-w-2xl bg-surface-container-lowest shadow-2xl flex flex-col h-full z-10 overflow-hidden">
+<!-- Drawer Header -->
+<div class="p-space-xl bg-surface-container-low/60 flex items-start justify-between gap-space-md">
+<div class="flex items-center gap-space-md">
+<div class="w-12 h-12 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-sm shrink-0">
+<span class="material-symbols-outlined text-headline-lg">account_tree</span>
+</div>
+<div class="flex flex-col">
+<h2 class="font-headline-md text-headline-md text-on-surface tracking-tight" id="deptModalTitle">Nouveau Département</h2>
 <p class="font-body-sm text-body-sm text-on-surface-variant" id="deptModalSubtitle">Structuration organisationnelle • Carthage Tech</p>
 </div>
-<button class="p-1 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors" onclick="document.getElementById('newDeptModal').classList.add('hidden')" type="button">
-<span class="material-symbols-outlined text-body-lg">close</span>
+</div>
+<button aria-label="Fermer" class="w-9 h-9 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors shrink-0" onclick="document.getElementById('newDeptModal').classList.add('hidden')" type="button">
+<span class="material-symbols-outlined text-headline-sm">close</span>
 </button>
 </div>
+<!-- Drawer Form Content -->
+<form class="flex-1 overflow-y-auto p-space-xl flex flex-col gap-space-md" id="deptForm" method="POST" action="{{ route('admin.departments.store') }}">
+@csrf
+<input id="deptMethod" name="_method" type="hidden" value="POST"/>
 @if ($errors->any())
-<div class="p-3 rounded-lg bg-error-container text-on-error-container font-label-sm text-label-sm space-y-1">
+<div class="p-space-md rounded-xl bg-error-container text-on-error-container flex items-start gap-space-sm">
+<span class="material-symbols-outlined text-body-lg shrink-0 mt-0.5">error</span>
+<div class="flex flex-col gap-1">
+<span class="font-label-md text-label-md font-semibold">Veuillez corriger les informations suivantes</span>
+<ul class="list-disc list-inside font-body-sm text-body-sm space-y-0.5">
 @foreach ($errors->all() as $error)
-<p>{{ $error }}</p>
+<li>{{ $error }}</li>
 @endforeach
+</ul>
+</div>
 </div>
 @endif
-<div class="space-y-4">
-<div class="space-y-1">
-<label class="font-label-sm text-label-sm font-semibold text-on-surface" for="deptName">Intitulé du Département</label>
-<input class="w-full h-10 px-3 rounded-lg bg-surface-container-low text-on-surface font-body-sm text-body-sm border border-outline-variant focus:border-primary focus:outline-none" id="deptName" name="name" placeholder="Ex: Data Intelligence &amp; IA" type="text" value="{{ old('name') }}" required/>
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface font-medium" for="deptName">Intitulé du Département</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="deptName" name="name" placeholder="Ex: Data Intelligence &amp; IA" type="text" value="{{ old('name') }}" required/>
 </div>
-<div class="space-y-1">
-<label class="font-label-sm text-label-sm font-semibold text-on-surface" for="deptManager">Responsable de Pôle (Lead)</label>
-<select class="w-full h-10 px-3 rounded-lg bg-surface-container-low text-on-surface font-body-sm text-body-sm border border-outline-variant focus:border-primary focus:outline-none" id="deptManager" name="manager_id">
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface font-medium" for="deptManager">Responsable de Pôle (Lead)</label>
+<div class="relative">
+<select class="w-full appearance-none h-10 pl-3 pr-8 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all cursor-pointer" id="deptManager" name="manager_id">
 <option value="">Sélectionner un collaborateur...</option>
 @foreach ($employees as $employee)
 <option value="{{ $employee->id }}" @selected((string) old('manager_id') === (string) $employee->id)>{{ $employee->name }} ({{ $employee->position }})</option>
 @endforeach
 </select>
-</div>
-<div class="space-y-1">
-<label class="font-label-sm text-label-sm font-semibold text-on-surface" for="deptCode">Code Analytique / Centre de Coûts</label>
-<input class="w-full h-10 px-3 rounded-lg bg-surface-container-low text-on-surface font-body-sm text-body-sm border border-outline-variant focus:border-primary focus:outline-none" id="deptCode" name="code" placeholder="Ex: CC-TECH-2025" type="text" value="{{ old('code') }}"/>
-</div>
-<div class="space-y-1">
-<label class="font-label-sm text-label-sm font-semibold text-on-surface" for="deptBudget">Budget Mensuel Estimé (TND)</label>
-<input class="w-full h-10 px-3 rounded-lg bg-surface-container-low text-on-surface font-body-sm text-body-sm border border-outline-variant focus:border-primary focus:outline-none" id="deptBudget" min="0" name="monthly_budget" placeholder="25000" step="0.001" type="number" value="{{ old('monthly_budget') }}"/>
-</div>
-<div class="space-y-1">
-<label class="font-label-sm text-label-sm font-semibold text-on-surface" for="deptDescription">Missions &amp; Objectifs</label>
-<textarea class="w-full p-3 rounded-lg bg-surface-container-low text-on-surface font-body-sm text-body-sm border border-outline-variant focus:border-primary focus:outline-none" id="deptDescription" name="description" placeholder="Décrivez succinctement le périmètre opérationnel..." rows="3">{{ old('description') }}</textarea>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-body-md">expand_more</span>
 </div>
 </div>
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface font-medium" for="deptCode">Code Analytique / Centre de Coûts</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="deptCode" name="code" placeholder="Ex: CC-TECH-2025" type="text" value="{{ old('code') }}"/>
 </div>
-<div class="pt-6 border-t border-surface-container flex items-center justify-end gap-3">
-<button class="px-4 py-2 rounded-lg bg-surface-container-low font-label-md text-label-md text-on-surface hover:bg-surface-container transition-colors" onclick="document.getElementById('newDeptModal').classList.add('hidden')" type="button">
-          Annuler
-        </button>
-<button class="px-4 py-2 rounded-lg bg-primary-container font-label-md text-label-md text-on-primary hover:bg-primary transition-colors" id="deptSubmitBtn" type="submit">
-<span id="deptSubmitLabel">Enregistrer le Département</span>
-        </button>
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface font-medium" for="deptBudget">Budget Mensuel Estimé (TND)</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all" id="deptBudget" min="0" name="monthly_budget" placeholder="25000" step="0.001" type="number" value="{{ old('monthly_budget') }}"/>
+</div>
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface font-medium" for="deptDescription">Missions &amp; Objectifs</label>
+<textarea class="w-full min-h-[96px] px-3 py-2 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md placeholder:text-on-surface-variant focus:outline-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary transition-all resize-y" id="deptDescription" name="description" placeholder="Décrivez succinctement le périmètre opérationnel..." rows="3">{{ old('description') }}</textarea>
 </div>
 </form>
+<!-- Drawer Sticky Footer Actions -->
+<div class="p-space-lg bg-surface-container-lowest shadow-[0_-4px_12px_rgba(0,0,0,0.03)] flex items-center justify-between gap-space-sm">
+<button class="h-10 px-space-lg rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-lg text-label-lg transition-colors" onclick="document.getElementById('newDeptModal').classList.add('hidden')" type="button">
+          Annuler
+        </button>
+<button class="h-10 px-space-xl rounded-xl bg-primary-fill hover:bg-primary-container text-on-primary font-label-lg text-label-lg shadow-md flex items-center gap-space-xs transition-all transform active:scale-95" id="deptSubmitBtn" type="submit" form="deptForm">
+<span class="material-symbols-outlined text-body-md">check</span>
+<span id="deptSubmitLabel">Enregistrer le Département</span>
+</button>
+</div>
 </div>
 </div>
 <!-- Micro Interaction Script for Switch View & Search Filter -->

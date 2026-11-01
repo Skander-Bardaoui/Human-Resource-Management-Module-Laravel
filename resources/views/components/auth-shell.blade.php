@@ -6,6 +6,7 @@
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <meta content="{{ csrf_token() }}" name="csrf-token"/>
+    <meta content="light dark" name="color-scheme"/>
     <title>{{ $title }} — HRM Pro Tunisie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect"/>
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -32,13 +33,16 @@
             background: #CBD5E1;
         }
     </style>
+    @include('components.theme-tokens', ['section' => 'bootstrap'])
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    @include('components.theme-tokens', ['section' => 'colors'])
     <script>
         tailwind.config = {
             darkMode: "class",
             theme: {
                 extend: {
                     colors: {
+                        ...window.HRM_THEME_COLORS,
                         brand: {
                             50: '#EEF2FF',
                             100: '#E0E7FF',
@@ -62,11 +66,11 @@
         }
     </script>
 </head>
-<body class="h-full bg-slate-50 text-slate-800 antialiased selection:bg-brand-500 selection:text-white">
+<body class="h-full bg-slate-50 text-slate-800 dark:bg-surface dark:text-on-surface antialiased selection:bg-brand-500 selection:text-white">
 <div class="min-h-screen w-full flex flex-col lg:flex-row overflow-x-hidden">
 
     <!-- LEFT PANEL: Authentication & Workspace Form -->
-    <div class="w-full lg:w-1/2 min-h-screen flex flex-col justify-between bg-white px-6 py-8 sm:px-12 md:px-16 lg:px-16 xl:px-20 border-r border-slate-200/80 custom-scrollbar overflow-y-auto z-10 shadow-lg lg:shadow-none">
+    <div class="auth-form-panel w-full lg:w-1/2 min-h-screen flex flex-col justify-between bg-white px-6 py-8 sm:px-12 md:px-16 lg:px-16 xl:px-20 border-r border-slate-200/80 custom-scrollbar overflow-y-auto z-10 shadow-lg lg:shadow-none">
         <div>
             <!-- Top Bar: Logo & Enterprise Status -->
             <div class="flex items-center justify-between pb-8">
@@ -77,14 +81,19 @@
                     <div>
                         <div class="flex items-center gap-2">
                             <span class="font-bold text-xl text-slate-900 tracking-tight">HRM Pro</span>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-brand-50 text-brand-700 border border-brand-200">TN v4.12</span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-brand-50 text-brand-700 border border-brand-200 dark:bg-brand-500/15 dark:text-brand-200 dark:border-brand-500/30">TN v4.12</span>
                         </div>
                         <p class="text-xs text-slate-500 font-medium">Portail RH &amp; Entreprise Tunisie</p>
                     </div>
                 </a>
-                <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs text-slate-600">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span class="font-medium">Serveurs Sécurisés Tunis</span>
+                <div class="flex items-center gap-2">
+                    <button aria-label="Changer le thème" aria-pressed="false" class="w-9 h-9 rounded-xl flex items-center justify-center text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors shrink-0" data-theme-toggle type="button">
+                        <span class="material-symbols-outlined text-[20px]" data-theme-icon>contrast</span>
+                    </button>
+                    <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span class="font-medium">Serveurs Sécurisés Tunis</span>
+                    </div>
                 </div>
             </div>
 
@@ -112,7 +121,7 @@
                 <div>
                     <div class="flex items-center gap-2">
                         <span class="text-xs font-bold text-slate-900">Conformité Légale Garantie</span>
-                        <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">Homologué</span>
+                        <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">Homologué</span>
                     </div>
                     <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">
                         Conforme au Code du Travail (Loi n° 66-27), barème IRPP actualisé et télé-déclarations trimestrielles CNSS Tunisie certifiées.

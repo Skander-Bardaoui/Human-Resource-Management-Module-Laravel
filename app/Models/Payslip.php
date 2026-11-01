@@ -49,6 +49,37 @@ class Payslip extends Model
         return $this->belongsTo(Employee::class);
     }
 
+    public function scopeForEmployee($query, Employee|int $employee)
+    {
+        return $query->where('employee_id', $employee instanceof Employee ? $employee->id : $employee);
+    }
+
+    public function periodLabel(): string
+    {
+        return ucfirst(
+            \Carbon\Carbon::createFromFormat('Y-m', (string) $this->period)->locale('fr')->translatedFormat('F Y')
+        );
+    }
+
+    public function periodNumber(): string
+    {
+        return \Carbon\Carbon::createFromFormat('Y-m', (string) $this->period)->locale('fr')->translatedFormat('m/Y');
+    }
+
+    public function netLabel(): string
+    {
+        return number_format((float) $this->net, 3, ',', ' ');
+    }
+
+    public function statusPillClasses(): string
+    {
+        return match ($this->status) {
+            'paid' => 'bg-tertiary-fixed text-on-tertiary-fixed',
+            'review' => 'bg-error-container text-on-error-container',
+            default => 'bg-secondary-container text-on-secondary-fixed',
+        };
+    }
+
     public function statusLabel(): string
     {
         return self::STATUSES[$this->status] ?? $this->status;
