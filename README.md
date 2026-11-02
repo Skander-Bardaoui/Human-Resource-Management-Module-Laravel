@@ -1,176 +1,72 @@
-# 🧑‍💼 Human Resource Management Module – Laravel
+<p align="center">
+  <img src="docs/banner.svg" width="100%" alt="HRM Pro banner" />
+</p>
 
-This Laravel application is a **Human Resource Management (HRM)** system designed to manage employees and their leave (congés).
-It allows administrators to add, edit, and delete employees, as well as manage their leave requests easily through a clean and modern interface built with Blade and TailwindCSS.
+<p align="center">
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=22&pause=1200&color=10B981&center=true&vCenter=true&width=760&lines=Employees%2C+leave+%26+payroll;Laravel+%2B+Blade+%2B+Tailwind;Built+for+real+HR+workflows" alt="Typing tagline" />
+</p>
 
----
+<p align="center">
+  <img src="https://img.shields.io/github/languages/top/Skander-Bardaoui/Human-Resource-Management-Module-Laravel?style=flat-square&color=10B981" alt="" />
+  <img src="https://img.shields.io/github/stars/Skander-Bardaoui/Human-Resource-Management-Module-Laravel?style=flat-square&color=10B981" alt="" />
+  <img src="https://img.shields.io/github/last-commit/Skander-Bardaoui/Human-Resource-Management-Module-Laravel?style=flat-square&color=34D399" alt="" />
+  <img src="https://img.shields.io/badge/status-Active-10B981?style=flat-square" alt="" />
+</p>
 
-## 🚀 Features
+## Overview
 
-### 👨‍💻 Employee Management
+A Laravel and Blade HR management module covering the employee lifecycle: a central directory, leave requests with hierarchical validation, attendance, payroll, recruitment, document management, departmental reports and role-based access. The workflows follow Tunisian labour-code and CNSS declaration requirements.
 
-* Create, view, edit, and delete employees.
-* Each employee has:
+## Highlights
 
-  * Name
-  * Position
-  * Email
-  * Mobile number
+- Employee directory with position, contact and document records
+- Leave requests with hierarchical approval workflow
+- Attendance tracking and payroll preparation
+- Recruitment pipeline and candidate follow-up
+- Departmental reports and role-based access control
+- Blade + Tailwind interface built for data-dense daily use
 
-### 🌴 Leave (Congé) Management
+## Tech stack
 
-* Add new leave requests for employees.
-* Edit or delete existing leave records.
-* Validate leave period (start date < end date).
-* View all leaves in a table format.
-* Automatically links each leave to an employee.
+<p align="center">
+  <img src="https://skillicons.dev/icons?i=laravel,php,mysql,tailwind,alpinejs&theme=dark&perline=8" alt="Tech stack" />
+</p>
 
----
+## Screenshots
 
-## 🏧 Project Structure
+<p align="center">
+  <a href="docs/screenshots/employees.webp"><img src="docs/screenshots/employees.webp" width="49%" alt="Employee directory" /></a>
+  <a href="docs/screenshots/leave.webp"><img src="docs/screenshots/leave.webp" width="49%" alt="Leave management" /></a>
+  <a href="docs/screenshots/reports.webp"><img src="docs/screenshots/reports.webp" width="49%" alt="Reports" /></a>
+</p>
 
-### Controllers
+## Getting started
 
-* **EmployeeController** → Handles CRUD operations for employees.
-* **CongesController** → Manages leave requests (create, edit, delete, list).
-* **ProfileController** → Manages user profile and authentication.
-* **StudentController** → Example resource controller (not yet used).
-
-### Models
-
-* `Employee`
-* `Conges`
-* (Optional) `Student`
-
-### Views (Blade)
-
-* `employees/` → Employee management views.
-* `conges/` → Leave management views:
-
-  * `index.blade.php` → List of all leaves.
-  * `create.blade.php` → Add a new leave.
-  * `edit.blade.php` → Edit leave information.
-  * `confirm_delete.blade.php` → Confirm deletion before removing a record.
-
----
-
-## ⚙️ Installation Guide
-
-### 1️⃣ Clone the Repository
-
-```bash
-git clone https://github.com/yourusername/hrm-laravel.git
-cd hrm-laravel
-```
-
-### 2️⃣ Install Dependencies
+**Prerequisites:** PHP 8.2+, Composer, Node.js 20+ and MySQL.
 
 ```bash
 composer install
 npm install
-```
-
-### 3️⃣ Configure Environment
-
-Copy `.env.example` to `.env` and configure your database:
-
-```bash
 cp .env.example .env
-```
-
-Edit the `.env` file:
-
-```env
-DB_DATABASE=your_database_name
-DB_USERNAME=your_username
-DB_PASSWORD=your_password
-```
-
-### 4️⃣ Generate Application Key
-
-```bash
 php artisan key:generate
-```
-
-### 5️⃣ Run Migrations
-
-```bash
+# configure DB_* in .env, then:
 php artisan migrate
-```
-
-### 6️⃣ Start the Development Server
-
-```bash
+npm run build
 php artisan serve
 ```
 
-Now visit **[http://127.0.0.1:8000](http://127.0.0.1:8000)** in your browser 🎉
+## Documentation
+
+- [Original project documentation](docs/README_ORIGINAL.md)
 
 ---
 
-## 🧩 Technologies Used
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:10B981,100:0A0A0C&height=110&section=footer" alt="footer" width="100%" />
+</p>
 
-* **Laravel 11**
-* **Blade Templates**
-* **Tailwind CSS**
-* **PHP 8+**
-* **MySQL**
-
----
-
-## 📊 Database Structure
-
-### Employees Table
-
-| Field    | Type   | Description            |
-| -------- | ------ | ---------------------- |
-| id       | int    | Primary key            |
-| name     | string | Employee full name     |
-| position | string | Employee role/position |
-| email    | string | Unique email           |
-| mobile   | string | Phone number           |
-
-### Conges Table
-
-| Field         | Type   | Description          |
-| ------------- | ------ | -------------------- |
-| id            | int    | Primary key          |
-| employee_name | string | Linked employee name |
-| start_date    | date   | Leave start date     |
-| end_date      | date   | Leave end date       |
-| reason        | text   | Reason for leave     |
-
----
-
-## 💡 Example Pages
-
-### 🏠 Congés List
-
-Displays all leave records with options to edit or delete.
-
-### ➕ Add Congé
-
-Form to select employee, set start and end dates, and specify reason.
-
-### ✏️ Edit Congé
-
-Form pre-filled with existing data to update a leave record.
-
----
-
-## 👨‍🔧 Author
-
-**Skander Bardaoui**
-🌍 Tunisia
-🎓 Business Intelligence & Software Engineering Student
-💼 Interested in Data Science & Web Development
-
----
-
-## 🪪 License
-
-This project is open-source and available under the [MIT License](LICENSE).
-
----
-
-> 🧠 *Simple Laravel HR module to manage employees and their leaves efficiently!*
+<p align="center">
+  Built by <a href="https://github.com/Skander-Bardaoui"><b>Skander Bardaoui</b></a> ·
+  <a href="https://skander-bardaoui.netlify.app/">Portfolio</a> ·
+  <a href="https://github.com/Skander-Bardaoui?tab=repositories">All repositories</a>
+</p>
